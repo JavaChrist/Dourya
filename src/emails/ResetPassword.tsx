@@ -1,5 +1,5 @@
 import { Button, Heading, Link, Section, Text } from "@react-email/components";
-import { EmailLayout, buttonStyle, headingStyle, linkStyle, smallTextStyle, textFooter, textStyle } from "./_components/EmailLayout";
+import { EmailLayout, buttonStyle, headingStyle, linkStyle, linkTextStyle, smallTextStyle, textFooter, textStyle } from "./_components/EmailLayout";
 import { previewLegal, type ActionEmailProps } from "./_components/types";
 
 /** Template 2: password reset (security e-mail). */
@@ -23,7 +23,7 @@ export default function ResetPassword(props: ActionEmailProps) {
         </Button>
       </Section>
       <Text style={smallTextStyle}>Ce lien ne sert qu&apos;une fois et expire après un délai limité.</Text>
-      <Text style={smallTextStyle}>
+      <Text style={linkTextStyle}>
         Si le bouton ne fonctionne pas, copiez ce lien dans votre navigateur :<br />
         <Link href={props.actionUrl} style={linkStyle}>
           {props.actionUrl}

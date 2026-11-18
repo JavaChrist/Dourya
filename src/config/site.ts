@@ -18,8 +18,26 @@ export function parseSiteUrl(raw: string | undefined): string | undefined {
   }
 }
 
+const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]", "0.0.0.0"]);
+
+function isLocalOrigin(origin: string): boolean {
+  const host = new URL(origin).hostname;
+  return LOCAL_HOSTS.has(host) || host.endsWith(".localhost");
+}
+
+/**
+ * Like parseSiteUrl, but a production build ignores a local origin: a
+ * localhost value copied from a dev env must never reach e-mails, robots.txt
+ * or canonical URLs. The caller then falls back to the production domain.
+ */
+export function resolveSiteUrl(raw: string | undefined, production: boolean): string | undefined {
+  const origin = parseSiteUrl(raw);
+  if (origin && production && isLocalOrigin(origin)) return undefined;
+  return origin;
+}
+
 export function configuredSiteUrl(): string | undefined {
-  return parseSiteUrl(process.env.NEXT_PUBLIC_SITE_URL);
+  return resolveSiteUrl(process.env.NEXT_PUBLIC_SITE_URL, process.env.NODE_ENV === "production");
 }
 
 /**
