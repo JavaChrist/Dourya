@@ -2,7 +2,7 @@ import "server-only";
 import { FieldValue, Timestamp, type DocumentData } from "firebase-admin/firestore";
 import { accountConfig } from "@/config/commerce";
 import type { Order } from "@/lib/commerce-types";
-import { adminDb } from "@/lib/firebase/admin";
+import { adminDb } from "@/lib/firebase/admin-db";
 import type { AddressInput } from "./validation";
 
 /**

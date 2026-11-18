@@ -6,6 +6,11 @@ const buildId = process.env.VERCEL_GIT_COMMIT_SHA ?? `local-${Date.now()}`;
 const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
+  // firebase-admin is bundled instead of loaded as an external module, so that jwks-rsa's
+  // require("jose") (jose 6 is ESM only) is resolved at build time: Vercel functions run
+  // with require(esm) disabled (vercel/vercel#17770, firebase/firebase-admin-node#3181).
+  // Remove once firebase-admin ships a CommonJS-compatible chain.
+  transpilePackages: ["firebase-admin"],
   // Dev only: Server Function calls are logged with their arguments (ID tokens,
   // addresses, unsubscribe tokens). Never print them, even locally.
   // The same goes for the request lines of the e-mail links (one-time codes, tokens in the query).

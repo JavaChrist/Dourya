@@ -4,7 +4,7 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 let ip = "203.0.113.1";
 vi.mock("next/headers", () => ({ headers: async () => new Headers({ "x-forwarded-for": ip }) }));
 
-import { adminDb } from "@/lib/firebase/admin";
+import { adminDb } from "@/lib/firebase/admin-db";
 import { deliverPasswordReset, deliverVerificationEmail } from "@/lib/email/auth-emails";
 import { testOutbox } from "@/lib/email/send";
 import { addSuppression, isSuppressed, liftUnsubscribe } from "@/lib/email/store";

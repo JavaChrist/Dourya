@@ -12,7 +12,7 @@ import {
   listOwnDataRequests,
   markDataRequestDone,
 } from "@/lib/account/repository";
-import { adminDb } from "@/lib/firebase/admin";
+import { adminDb } from "@/lib/firebase/admin-db";
 import { checkRateLimit } from "@/lib/security/rate-limit";
 import { FirestoreRateLimitStore } from "@/lib/security/firestore-rate-limit-store";
 

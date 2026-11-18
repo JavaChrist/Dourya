@@ -1,8 +1,17 @@
 import "server-only";
 import { cert, getApps, initializeApp, type App } from "firebase-admin/app";
-import { getAuth } from "firebase-admin/auth";
-import { getFirestore } from "firebase-admin/firestore";
 import { EMULATOR_PROJECT_ID, isPlaceholder } from "./shared";
+
+/*
+ * Firebase Admin is split in three modules so that a route loads only the
+ * services it uses:
+ * - admin-app.ts: the app (credentials), shared by both;
+ * - admin-db.ts: Firestore (webhook, e-mail store, rate limit, account data);
+ * - admin-auth.ts: Auth (sessions, sign-in, e-mail action links).
+ * firebase-admin/auth loads jwks-rsa -> jose (ESM only), which fails where
+ * require(esm) is disabled (Vercel functions): Firestore-only routes must never
+ * import admin-auth.ts, even indirectly.
+ */
 
 export class FirebaseConfigError extends Error {
   constructor() {
@@ -16,7 +25,7 @@ function usesEmulators(): boolean {
 }
 
 /** Firebase Admin, server only. Credentials come from server env vars, never from the client. */
-function adminApp(): App {
+export function adminApp(): App {
   const existing = getApps()[0];
   if (existing) return existing;
 
@@ -31,6 +40,3 @@ function adminApp(): App {
   if (isPlaceholder(projectId) || isPlaceholder(clientEmail) || isPlaceholder(privateKey)) throw new FirebaseConfigError();
   return initializeApp({ credential: cert({ projectId: projectId!, clientEmail: clientEmail!, privateKey: privateKey! }), projectId });
 }
-
-export const adminAuth = () => getAuth(adminApp());
-export const adminDb = () => getFirestore(adminApp());

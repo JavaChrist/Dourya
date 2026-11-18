@@ -1,6 +1,6 @@
 import "server-only";
 import { siteOrigin } from "@/config/site";
-import { adminAuth } from "@/lib/firebase/admin";
+import { adminAuth } from "@/lib/firebase/admin-auth";
 import { errorCode, logEvent } from "@/lib/log";
 import { allowAll, clientIp } from "@/lib/security/limit";
 import { readEmailConfig } from "./config";

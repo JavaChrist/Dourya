@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { ensureProfile } from "@/lib/account/repository";
 import { deliverVerificationEmail, type DeliveryStatus } from "@/lib/email/auth-emails";
-import { adminAuth } from "@/lib/firebase/admin";
+import { adminAuth } from "@/lib/firebase/admin-auth";
 import { errorCode, logEvent } from "@/lib/log";
 import { allowAction } from "@/lib/security/limit";
 import { SESSION_COOKIE, SESSION_COOKIE_NAMES, SESSION_MAX_AGE_SECONDS, type SessionScope } from "./config";

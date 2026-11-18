@@ -1,7 +1,7 @@
 import "server-only";
 import { createHash } from "node:crypto";
 import { Timestamp } from "firebase-admin/firestore";
-import { adminDb } from "@/lib/firebase/admin";
+import { adminDb } from "@/lib/firebase/admin-db";
 import type { RateLimitStore } from "./rate-limit";
 
 /**

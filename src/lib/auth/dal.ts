@@ -3,7 +3,7 @@ import { cache } from "react";
 import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { connection } from "next/server";
-import { adminAuth } from "@/lib/firebase/admin";
+import { adminAuth } from "@/lib/firebase/admin-auth";
 import { errorCode, logEvent } from "@/lib/log";
 import { SESSION_COOKIE } from "./config";
 import { resolveSession, type SessionAuth, type SessionState } from "./session-core";

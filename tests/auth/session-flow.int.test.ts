@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from "vitest";
-import { adminAuth } from "@/lib/firebase/admin";
+import { adminAuth } from "@/lib/firebase/admin-auth";
 import { resolveSession, startSession, type SessionAuth } from "@/lib/auth/session-core";
 import { setRole, showRole } from "../../scripts/lib/admin-role.mjs";
 import {

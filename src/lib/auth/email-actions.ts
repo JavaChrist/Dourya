@@ -1,7 +1,7 @@
 "use server";
 
 import { deliverPasswordReset, deliverVerificationEmail, type DeliveryStatus, type ResetStatus } from "@/lib/email/auth-emails";
-import { adminAuth } from "@/lib/firebase/admin";
+import { adminAuth } from "@/lib/firebase/admin-auth";
 import { errorCode, logEvent } from "@/lib/log";
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

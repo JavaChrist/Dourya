@@ -1,6 +1,6 @@
 import "server-only";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
-import { adminDb } from "@/lib/firebase/admin";
+import { adminDb } from "@/lib/firebase/admin-db";
 import type { EmailCategory, EmailType, TemplateOverride } from "./registry";
 import { sanitizeOverride } from "./registry";
 
