@@ -111,6 +111,14 @@ Le compte doit exister (inscription faite). Le changement de rôle révoque les 
 - Le paiement reste bloqué tant que le panier contient un produit de démo ou une ligne en erreur. Aucun frais de livraison n'est calculé (lot 4).
 - Personnalisation désactivée par défaut ; activable par produit (`personalisation.enabled`), par variante (`variantIds`) et par période (`availableFrom` / `availableUntil`).
 
+## Domaines et référencement
+
+- Domaine principal : `https://dourya.fr`. `www.dourya.fr`, `dourya.shop` et `www.dourya.shop` redirigent en 308 vers lui (Vercel, DNS IONOS).
+- `NEXT_PUBLIC_SITE_URL` (à `https://dourya.fr` dans Vercel Production) est lue par `siteOrigin()` dans `src/config/site.ts`. Valeur absente ou invalide : `https://dourya.fr` en build de production, `http://localhost:3000` en développement. Variable inlinée au build : la changer demande un redéploiement.
+- Elle sert à `metadataBase` (layout racine), aux URL canoniques (accueil, boutique, catégories, collections, produits, pages infos), à `/robots.txt` (`src/app/robots.ts`), à `/sitemap.xml` (`src/app/sitemap.ts`) et aux liens des e-mails Firebase.
+- `robots.txt` bloque compte, admin, connexion, panier, recherche et API. Sur une prévisualisation Vercel, il bloque tout.
+- Le sitemap liste uniquement les pages publiques : produits listés, catégories et collections visibles, pages infos.
+
 ## Redirections (308, `next.config.ts`)
 
 | Ancienne URL | Nouvelle URL |

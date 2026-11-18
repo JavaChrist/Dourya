@@ -1,3 +1,5 @@
+import { configuredSiteUrl } from "@/config/site";
+
 /**
  * Maps Firebase Auth client errors to messages that reveal nothing:
  * never whether an e-mail has an account, never which field was wrong.
@@ -13,7 +15,12 @@ export function isCode(error: unknown, code: string): boolean {
   return !!error && typeof error === "object" && "code" in error && error.code === code;
 }
 
-/** Absolute URL of a page of this site, for the links inside Firebase e-mails. */
+/**
+ * Absolute URL of a page of this site, for the links inside Firebase e-mails.
+ * Uses NEXT_PUBLIC_SITE_URL so the links always point to the main domain;
+ * the current origin is the fallback when the variable is not set.
+ * The domain must be listed in Firebase Auth > Authorized domains.
+ */
 export function siteUrl(path: string): string {
-  return new URL(path, window.location.origin).toString();
+  return new URL(path, configuredSiteUrl() ?? window.location.origin).toString();
 }

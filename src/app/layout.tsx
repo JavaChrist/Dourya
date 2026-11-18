@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Fredoka, Nunito } from "next/font/google";
 import "./globals.css";
-import { site, mainNav } from "@/config/site";
+import { site, mainNav, siteOrigin } from "@/config/site";
 import { sectionBackgrounds } from "@/data/home";
 import { getSearchEntries } from "@/lib/catalog/search";
 import { CartProvider } from "@/components/cart/CartProvider";
@@ -15,6 +15,10 @@ const fredoka = Fredoka({ variable: "--font-fredoka", subsets: ["latin"] });
 export const metadata: Metadata = {
   title: { default: `${site.name} : illustrations et créations originales`, template: `%s | ${site.name}` },
   description: site.description,
+  // Turns the relative canonical URLs of each page into absolute https://dourya.fr URLs.
+  // No canonical here: it would be inherited by every page that does not set its own.
+  metadataBase: new URL(siteOrigin()),
+  openGraph: { siteName: site.name, locale: "fr_FR", type: "website" },
 };
 
 export const viewport: Viewport = {

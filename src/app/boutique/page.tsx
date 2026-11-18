@@ -8,6 +8,8 @@ import { ShopListing } from "@/components/catalog/ShopListing";
 export const metadata: Metadata = {
   title: "Boutique",
   description: "Toutes les créations DOURYA : prints, stickers et porte-clés.",
+  // Sort and filter parameters give the same listing: one canonical URL.
+  alternates: { canonical: "/boutique" },
 };
 
 /** searchParams are read inside Suspense so the App Shell stays URL-independent. */

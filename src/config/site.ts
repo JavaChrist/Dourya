@@ -1,5 +1,36 @@
 import type { InfoPage, NavItem, SocialLink } from "@/lib/types";
 
+/** Production domain. www.dourya.fr, dourya.shop and www.dourya.shop redirect here (308, Vercel). */
+export const PRODUCTION_SITE_URL = "https://dourya.fr";
+
+/**
+ * Origin read from NEXT_PUBLIC_SITE_URL (inlined at build time, safe in the browser).
+ * Only http(s) is accepted; any path is dropped. Undefined when unset or invalid.
+ */
+export function parseSiteUrl(raw: string | undefined): string | undefined {
+  const value = raw?.trim();
+  if (!value) return undefined;
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" || url.protocol === "http:" ? url.origin : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export function configuredSiteUrl(): string | undefined {
+  return parseSiteUrl(process.env.NEXT_PUBLIC_SITE_URL);
+}
+
+/**
+ * Public origin of the site, for metadataBase, canonical URLs, robots.txt and
+ * sitemap.xml. Falls back to the production domain in a production build, to
+ * localhost in development.
+ */
+export function siteOrigin(): string {
+  return configuredSiteUrl() ?? (process.env.NODE_ENV === "production" ? PRODUCTION_SITE_URL : "http://localhost:3000");
+}
+
 /**
  * Site-wide settings. Contact details, social links and legal information are
  * left empty on purpose: they must come from DOURYA, never be invented.

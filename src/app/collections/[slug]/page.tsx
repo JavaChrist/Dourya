@@ -18,6 +18,7 @@ export async function generateMetadata({ params }: PageProps<"/collections/[slug
   return {
     title: collection.seo?.title ?? collection.name,
     description: collection.seo?.description ?? collection.description,
+    alternates: { canonical: `/collections/${collection.slug}` },
   };
 }
 

@@ -22,6 +22,7 @@ export async function generateMetadata({ params }: PageProps<"/produits/[slug]">
   return {
     title: product.seo?.title ?? product.name,
     description: product.seo?.description ?? product.description,
+    alternates: { canonical: `/produits/${product.slug}` },
   };
 }
 

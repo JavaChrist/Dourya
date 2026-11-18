@@ -10,7 +10,9 @@ export function generateStaticParams() {
 
 export async function generateMetadata({ params }: PageProps<"/infos/[slug]">): Promise<Metadata> {
   const { slug } = await params;
-  return { title: infoPages.find((p) => p.slug === slug)?.title ?? "Informations" };
+  const page = infoPages.find((p) => p.slug === slug);
+  if (!page) return { title: "Informations" };
+  return { title: page.title, alternates: { canonical: `/infos/${page.slug}` } };
 }
 
 /** Contact, Mail Club and legal pages. Their real text must come from DOURYA. */
