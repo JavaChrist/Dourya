@@ -26,6 +26,9 @@ beforeEach(async () => {
     await setDoc(doc(db, "orders/o-bob"), { customerUid: "bob", totalCents: 2000 });
     await setDoc(doc(db, "dataRequests/r1"), { uid: "alice", type: "deletion", status: "pending" });
     await setDoc(doc(db, "rateLimits/k1"), { count: 1 });
+    await setDoc(doc(db, "emailLog/l1"), { type: "auth-verify-email", status: "sent" });
+    await setDoc(doc(db, "emailSuppressions/h1"), { scope: "marketing", reason: "unsubscribe" });
+    await setDoc(doc(db, "emailTemplates/auth-verify-email"), { enabled: true, subject: "Bonjour" });
   });
 });
 
@@ -97,6 +100,15 @@ describe("firestore.rules: server-only collections", () => {
   it("an admin reads GDPR requests but not rate-limit counters", async () => {
     await assertSucceeds(getDoc(doc(as("admin", ADMIN), "dataRequests/r1")));
     await assertFails(getDoc(doc(as("admin", ADMIN), "rateLimits/k1")));
+  });
+
+  it("e-mail collections are closed to customers and admins (server only)", async () => {
+    for (const path of ["emailLog/l1", "emailSuppressions/h1", "emailTemplates/auth-verify-email"]) {
+      await assertFails(getDoc(doc(as("alice", ALICE), path)));
+      await assertFails(getDoc(doc(as("admin", ADMIN), path)));
+      await assertFails(setDoc(doc(as("admin", ADMIN), path), { a: 1 }));
+    }
+    await assertFails(setDoc(doc(as("alice", ALICE), "emailSuppressions/h2"), { reason: "unsubscribe" }));
   });
 
   it("an unknown collection is closed", async () => {

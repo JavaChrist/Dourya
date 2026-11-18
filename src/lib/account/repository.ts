@@ -76,11 +76,21 @@ export async function updateDisplayName(uid: string, displayName: string): Promi
   await users().doc(uid).set({ displayName, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
 }
 
-/** Consent is stored with its date (proof of consent). */
-export async function setNewsletterConsent(uid: string, granted: boolean): Promise<void> {
+/** Where a consent change came from: the account page or an e-mail unsubscribe link. */
+export type ConsentSource = "account" | "unsubscribe-link" | "one-click";
+
+/** Consent is stored with its date and its source (proof of consent). */
+export async function setNewsletterConsent(uid: string, granted: boolean, source: ConsentSource): Promise<void> {
   await users()
     .doc(uid)
-    .set({ consents: { newsletter: { granted, updatedAt: FieldValue.serverTimestamp() } } }, { merge: true });
+    .set({ consents: { newsletter: { granted, source, updatedAt: FieldValue.serverTimestamp() } } }, { merge: true });
+}
+
+/** Unsubscribe link: turns the newsletter off only for an existing account (never creates one). */
+export async function withdrawNewsletterConsent(uid: string, source: ConsentSource): Promise<void> {
+  const ref = users().doc(uid);
+  if (!(await ref.get()).exists) return;
+  await ref.update({ "consents.newsletter": { granted: false, source, updatedAt: FieldValue.serverTimestamp() } });
 }
 
 function toAddress(id: string, d: DocumentData): SavedAddress {

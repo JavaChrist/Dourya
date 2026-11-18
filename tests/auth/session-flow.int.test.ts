@@ -36,7 +36,7 @@ describe("sign-up and e-mail verification", () => {
   it("an unverified account gets no session, then signs in once verified", async () => {
     const email = "nouvelle@example.test";
     const { idToken } = await signUp(email, PASSWORD);
-    expect(await startSession(auth(), idToken, "customer")).toEqual({ ok: false, reason: "unverified" });
+    expect(await startSession(auth(), idToken, "customer")).toMatchObject({ ok: false, reason: "unverified" });
 
     await sendVerifyEmail(idToken);
     await applyEmailVerification(await lastOobCode(email, "VERIFY_EMAIL"));

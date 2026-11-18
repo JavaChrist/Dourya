@@ -24,6 +24,13 @@ const SERVER_ERRORS = {
   unavailable: "Le service est momentanément indisponible. Réessayez plus tard.",
 } as const;
 
+const VERIFICATION_NOTICES = {
+  sent: "Votre adresse e-mail n'est pas encore confirmée. Nous venons de vous renvoyer le lien de confirmation.",
+  use_firebase: "Votre adresse e-mail n'est pas encore confirmée. Nous venons de vous renvoyer le lien de confirmation.",
+  rate_limited: "Votre adresse e-mail n'est pas encore confirmée. Un lien vous a déjà été envoyé récemment : vérifiez votre boîte de réception et les courriers indésirables.",
+  failed: "Votre adresse e-mail n'est pas encore confirmée. Le renvoi du lien n'a pas abouti : réessayez dans quelques minutes.",
+} as const;
+
 /**
  * Sign-in: Firebase checks the password in the browser, then the server turns
  * the fresh ID token into an HttpOnly session cookie. The browser keeps no token.
@@ -65,9 +72,11 @@ export function LoginForm({ scope }: { scope: SessionScope }) {
       const idToken = await credential.user.getIdToken();
       const result = await startSessionAction(idToken, scope, params.get("next") ?? undefined);
       if (!result.ok && result.error === "unverified") {
-        await sendEmailVerification(credential.user, { url: siteUrl("/connexion?email-verifie=1") }).catch(() => undefined);
+        if (result.verification === "use_firebase") {
+          await sendEmailVerification(credential.user, { url: siteUrl("/connexion?email-verifie=1") }).catch(() => undefined);
+        }
         await signOut(auth);
-        setInfo("Votre adresse e-mail n'est pas encore confirmée. Nous venons de vous renvoyer le lien de confirmation.");
+        setInfo(VERIFICATION_NOTICES[result.verification]);
         setPending(false);
         return;
       }

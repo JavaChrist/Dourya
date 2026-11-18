@@ -35,7 +35,7 @@ describe("startSession", () => {
     expect(await startSession(fakeAuth({ auth_time: NOW - 600 }), TOKEN, "customer", NOW)).toEqual({ ok: false, reason: "stale" });
   });
   it("refuses an unverified e-mail", async () => {
-    expect(await startSession(fakeAuth({ email_verified: false }), TOKEN, "customer", NOW)).toEqual({ ok: false, reason: "unverified" });
+    expect(await startSession(fakeAuth({ email_verified: false }), TOKEN, "customer", NOW)).toMatchObject({ ok: false, reason: "unverified", user: { emailVerified: false } });
   });
   it("refuses an admin session to a customer", async () => {
     expect(await startSession(fakeAuth({}), TOKEN, "admin", NOW)).toEqual({ ok: false, reason: "forbidden" });

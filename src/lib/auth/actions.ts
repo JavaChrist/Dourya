@@ -3,6 +3,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { ensureProfile } from "@/lib/account/repository";
+import { deliverVerificationEmail, type DeliveryStatus } from "@/lib/email/auth-emails";
 import { adminAuth } from "@/lib/firebase/admin";
 import { errorCode, logEvent } from "@/lib/log";
 import { allowAction } from "@/lib/security/limit";
@@ -13,7 +14,9 @@ import { startSession, type SessionAuth } from "./session-core";
 
 export type StartSessionResponse =
   | { ok: true; redirectTo: string }
-  | { ok: false; error: "credentials" | "unverified" | "stale" | "rate_limited" | "unavailable" };
+  | { ok: false; error: "credentials" | "stale" | "rate_limited" | "unavailable" }
+  /** Address not confirmed: a new link is sent by the server ("use_firebase": the browser sends the Firebase e-mail). */
+  | { ok: false; error: "unverified"; verification: DeliveryStatus };
 
 /**
  * Called by the sign-in forms after Firebase has checked the password in the browser.
@@ -35,6 +38,13 @@ export async function startSessionAction(idToken: string, scope: SessionScope, n
     logEvent("session_refused", { scope, reason: result.reason });
     // A non-admin on the admin form gets the same answer as a wrong password.
     if (result.reason === "forbidden" || result.reason === "invalid") return { ok: false, error: "credentials" };
+    if (result.reason === "unverified") {
+      const verification = await deliverVerificationEmail(result.user).catch((error) => {
+        logEvent("verification_email_error", { code: errorCode(error) });
+        return "failed" as const;
+      });
+      return { ok: false, error: "unverified", verification };
+    }
     return { ok: false, error: result.reason };
   }
 

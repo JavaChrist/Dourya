@@ -22,6 +22,8 @@ if (!command) {
 }
 
 const env = { ...process.env };
+// On the emulators, DOURYA e-mails go to the in-memory test outbox: nothing is ever sent.
+env.EMAIL_TRANSPORT ??= "test";
 if (process.platform === "win32" && !env.JAVA_TOOL_OPTIONS?.includes("jdk.net.unixdomain.tmpdir")) {
   const dir = join(process.cwd(), ".emulators-tmp");
   mkdirSync(dir, { recursive: true });

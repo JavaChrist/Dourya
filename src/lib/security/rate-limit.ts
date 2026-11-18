@@ -19,6 +19,12 @@ export const RATE_LIMITS = {
   "account:write": { limit: 30, windowMs: 15 * 60_000 },
   "account:data-request": { limit: 3, windowMs: 24 * 60 * 60_000 },
   "account:export": { limit: 5, windowMs: 60 * 60_000 },
+  // E-mails: per IP and per account / per address (hashed), so nobody can flood an inbox.
+  "email:verify:ip": { limit: 10, windowMs: 60 * 60_000 },
+  "email:verify:uid": { limit: 3, windowMs: 60 * 60_000 },
+  "email:reset:ip": { limit: 5, windowMs: 15 * 60_000 },
+  "email:reset:address": { limit: 3, windowMs: 60 * 60_000 },
+  "email:unsubscribe": { limit: 30, windowMs: 15 * 60_000 },
 } as const satisfies Record<string, RateLimitRule>;
 
 export type RateLimitAction = keyof typeof RATE_LIMITS;

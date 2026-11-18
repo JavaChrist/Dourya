@@ -1,5 +1,7 @@
 "use server";
 
+import { liftUnsubscribe } from "@/lib/email/store";
+import { emailHash } from "@/lib/email/unsubscribe";
 import { refresh } from "next/cache";
 import {
   AddressLimitError,
@@ -54,7 +56,10 @@ export async function updateConsentsAction(_prev: FormState, formData: FormData)
   const user = await requireUser();
   if (!(await allowAction("account:write", user.uid))) return RATE_LIMITED;
   try {
-    await setNewsletterConsent(user.uid, formData.get("newsletter") === "on");
+    const granted = formData.get("newsletter") === "on";
+    await setNewsletterConsent(user.uid, granted, "account");
+    // A new opt-in from the account lifts a previous unsubscribe (never a bounce or a complaint).
+    if (granted && user.email) await liftUnsubscribe(emailHash(user.email));
   } catch (error) {
     logEvent("consent_update_error", { code: errorCode(error) });
     return FAILED;

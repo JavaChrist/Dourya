@@ -9,6 +9,8 @@ const PRIVATE_PATHS = [
   "/inscription",
   "/mot-de-passe-oublie",
   "/verification-email",
+  "/auth/action",
+  "/desinscription",
   "/panier",
   "/recherche",
   "/api/",

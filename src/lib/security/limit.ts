@@ -17,13 +17,21 @@ export async function clientIp(): Promise<string> {
  * If the limiter store fails, the action is refused (fail closed) for sensitive actions.
  */
 export async function allowAction(action: RateLimitAction, uid?: string): Promise<boolean> {
-  const rule = RATE_LIMITS[action];
+  const ip = await clientIp();
+  return allowAll([[action, `ip:${ip}`], ...(uid ? [[action, `uid:${uid}`] as [RateLimitAction, string]] : [])]);
+}
+
+/**
+ * Same check with a different rule per subject, e.g. per IP and per hashed address.
+ * The store hashes every key, so no IP or address is stored in clear. Fails closed.
+ */
+export async function allowAll(checks: [RateLimitAction, string][]): Promise<boolean> {
+  const action = checks[0]?.[0] ?? "unknown";
   try {
-    const subjects = [`ip:${await clientIp()}`, ...(uid ? [`uid:${uid}`] : [])];
-    for (const subject of subjects) {
-      const result = await checkRateLimit(store, action, subject, rule);
+    for (const [name, subject] of checks) {
+      const result = await checkRateLimit(store, name, subject, RATE_LIMITS[name]);
       if (!result.allowed) {
-        logEvent("rate_limited", { action });
+        logEvent("rate_limited", { action: name });
         return false;
       }
     }

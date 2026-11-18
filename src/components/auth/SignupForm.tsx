@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { createUserWithEmailAndPassword, sendEmailVerification, signOut } from "firebase/auth";
+import { sendVerificationEmailAction } from "@/lib/auth/email-actions";
 import { PASSWORD_MAX, PASSWORD_MIN, passwordProblem } from "@/lib/account/validation";
 import { clientAuth, isClientAuthConfigured } from "@/lib/firebase/client";
 import { isCode, siteUrl } from "@/lib/firebase/auth-errors";
@@ -47,7 +48,12 @@ export function SignupForm() {
     const auth = clientAuth();
     try {
       const credential = await createUserWithEmailAndPassword(auth, email, password);
-      await sendEmailVerification(credential.user, { url: siteUrl("/connexion?email-verifie=1") }).catch(() => undefined);
+      // The server sends the DOURYA e-mail; while custom e-mails are off it answers
+      // "use_firebase" and the Firebase e-mail is sent from here, as before.
+      const sent = await sendVerificationEmailAction(await credential.user.getIdToken()).catch(() => ({ status: "use_firebase" as const }));
+      if (sent.status === "use_firebase") {
+        await sendEmailVerification(credential.user, { url: siteUrl("/connexion?email-verifie=1") }).catch(() => undefined);
+      }
       await signOut(auth);
       router.push("/verification-email");
     } catch (err) {

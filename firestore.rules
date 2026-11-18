@@ -49,6 +49,17 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // E-mail send log, marketing suppressions and template overrides: server only.
+    match /emailLog/{id} {
+      allow read, write: if false;
+    }
+    match /emailSuppressions/{hash} {
+      allow read, write: if false;
+    }
+    match /emailTemplates/{type} {
+      allow read, write: if false;
+    }
+
     // Anything not listed above is refused.
     match /{document=**} {
       allow read, write: if false;

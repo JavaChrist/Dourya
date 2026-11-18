@@ -104,6 +104,23 @@ Le compte doit exister (inscription faite). Le changement de rôle révoque les 
 6. TTL sur les compteurs : `gcloud firestore fields ttls update expiresAt --collection-group=rateLimits --enable-ttl` (ou console Firestore > TTL).
 7. Donner le rôle admin au premier compte avec `npm run admin:role -- grant <email>`.
 
+## E-mails DOURYA (lot 3 bis)
+
+- Envoi côté serveur uniquement (`src/lib/email/`, `server-only`), via Resend. Modèles React Email dans `src/emails/` (logo officiel `public/brand/logo-full.png`, couleurs DOURYA). Aperçu local : `npm run email:preview` (port 3030, données fictives).
+- `EMAIL_TRANSPORT` choisit l'expéditeur :
+  - absent ou `firebase` (défaut) : rien ne change, Firebase envoie ses propres e-mails depuis le navigateur.
+  - `test` : e-mails rendus et gardés en mémoire, jamais envoyés (dev, émulateurs, tests).
+  - `resend` : envoi réel. Forcé à `test` sur les émulateurs. Rien n'est envoyé tant que `RESEND_API_KEY`, `EMAIL_FROM`, `EMAIL_REPLY_TO`, `EMAIL_LEGAL_NAME` ou `EMAIL_LEGAL_ADDRESS` manque (aucune valeur inventée).
+- Modèles livrés : 1 bienvenue / confirmation d'adresse, 2 réinitialisation du mot de passe. Les e-mails de commande (3 à 7) arrivent au lot 4, la newsletter (8) plus tard.
+- Liens : générés par Firebase Admin (`generateEmailVerificationLink`, `generatePasswordResetLink`), puis réécrits vers `/auth/action?mode=…&oobCode=…` sur `NEXT_PUBLIC_SITE_URL`. La page lit le code une fois, puis le retire de la barre d'adresse. `Referrer-Policy: no-referrer` et `noindex` sur `/auth/action`, `/desinscription` et `/api/email/*`.
+- Limites d'envoi : confirmation 3/h par compte et 10/h par IP ; réinitialisation 3/h par adresse et 5/15 min par IP ; désinscription 30/15 min par IP. La réinitialisation répond toujours la même chose, que l'adresse ait un compte ou non.
+- Journaux : `emailLog` (Firestore, admin SDK seul) garde le type, la catégorie, le statut et un hash de l'adresse, jamais l'adresse, le lien ou le code. Champ `expiresAt` pour une politique TTL de 90 jours. En dev, `logging` dans `next.config.ts` masque les arguments des Server Actions et les requêtes des liens d'e-mail.
+- Désinscription (marketing uniquement) : jeton HMAC (`EMAIL_UNSUBSCRIBE_SECRET`, 32 caractères minimum), page `/desinscription` (l'ouverture ne fait rien, il faut confirmer) et one-click RFC 8058 (`POST /api/email/desinscription`, en-têtes `List-Unsubscribe` sur les e-mails marketing seulement). Effet : entrée `emailSuppressions` et consentement newsletter retiré (`source` : `unsubscribe-link` ou `one-click`). Une nouvelle inscription depuis le compte lève la désinscription, jamais un rebond ou une plainte.
+- Les e-mails de sécurité et transactionnels ne consultent jamais la liste de suppression : une désinscription marketing ne les bloque pas.
+- Webhook Resend : `POST /api/webhooks/resend`, signature vérifiée (`RESEND_WEBHOOK_SECRET`, en-têtes `svix-*`). Rebond définitif → `bounce`, plainte → `complaint`, suppression côté Resend → `provider`. Erreur de stockage : 500 pour que Resend réessaie.
+- Admin (préparé) : un document `emailTemplates/{type}` (`enabled`, `subject`, `preheader`) remplace le sujet et le pré-en-tête par défaut. Pas encore d'écran d'édition. `emailLog`, `emailSuppressions` et `emailTemplates` sont fermés aux clients par `firestore.rules`.
+- Mise en service (une fois) : domaine d'envoi vérifié dans Resend (DNS), variables dans Vercel, TTL Firestore `gcloud firestore fields ttls update expiresAt --collection-group=emailLog --enable-ttl`, webhook Resend vers `https://dourya.fr/api/webhooks/resend`, puis `EMAIL_TRANSPORT=resend`.
+
 ## Panier et prix
 
 - Le navigateur ne stocke que `productId`, `variantId`, `quantity` et le texte de personnalisation. Tout prix envoyé par le navigateur est ignoré.
@@ -115,7 +132,7 @@ Le compte doit exister (inscription faite). Le changement de rôle révoque les 
 
 - Domaine principal : `https://dourya.fr`. `www.dourya.fr`, `dourya.shop` et `www.dourya.shop` redirigent en 308 vers lui (Vercel, DNS IONOS).
 - `NEXT_PUBLIC_SITE_URL` (à `https://dourya.fr` dans Vercel Production) est lue par `siteOrigin()` dans `src/config/site.ts`. Valeur absente ou invalide : `https://dourya.fr` en build de production, `http://localhost:3000` en développement. Variable inlinée au build : la changer demande un redéploiement.
-- Elle sert à `metadataBase` (layout racine), aux URL canoniques (accueil, boutique, catégories, collections, produits, pages infos), à `/robots.txt` (`src/app/robots.ts`), à `/sitemap.xml` (`src/app/sitemap.ts`) et aux liens des e-mails Firebase.
+- Elle sert à `metadataBase` (layout racine), aux URL canoniques (accueil, boutique, catégories, collections, produits, pages infos), à `/robots.txt` (`src/app/robots.ts`), à `/sitemap.xml` (`src/app/sitemap.ts`) et aux liens des e-mails (Firebase et DOURYA).
 - `robots.txt` bloque compte, admin, connexion, panier, recherche et API. Sur une prévisualisation Vercel, il bloque tout.
 - Le sitemap liste uniquement les pages publiques : produits listés, catégories et collections visibles, pages infos.
 
@@ -139,7 +156,8 @@ Le compte doit exister (inscription faite). Le changement de rôle révoque les 
 - **Firebase** : une implémentation Firestore de `CatalogRepository` remplacera `fixture-repository.ts`, sans changer les composants. Auth Firebase en place (lot 3).
 - **Stripe** (remplace Mollie, décision du 2026-11-18) : Stripe Checkout hébergé, session créée uniquement côté serveur à partir du panier recalculé (jamais d'un prix navigateur). Carte bancaire, Apple Pay et Google Pay sur les appareils compatibles (activés dans le tableau de bord Stripe, rien à coder côté client). La commande n'est confirmée que par le webhook signé (`checkout.session.completed`, `payment_intent.payment_failed`, `charge.refunded`), jamais par la page de retour. Historique des transactions et données financières de l'admin alimentés par ces événements. Aucune intégration avant le lot Paiement.
 - **Vercel** : `VERCEL_GIT_COMMIT_SHA` sert d'identifiant de version pour la modale « Nouvelle version disponible ».
-- Variables (valeurs uniquement dans `.env.local` et Vercel ; `NEXT_PUBLIC_FIREBASE_*` et `FIREBASE_ADMIN_*` lues depuis le lot 3, Stripe au lot 4) :
+- Variables (valeurs uniquement dans `.env.local` et Vercel ; `NEXT_PUBLIC_FIREBASE_*` et `FIREBASE_ADMIN_*` lues depuis le lot 3, e-mails au lot 3 bis, Stripe au lot 4) :
   - Publiques : `NEXT_PUBLIC_FIREBASE_API_KEY`, `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`, `NEXT_PUBLIC_FIREBASE_PROJECT_ID`, `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`, `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`, `NEXT_PUBLIC_FIREBASE_APP_ID`, `NEXT_PUBLIC_SITE_URL`
-  - Secrètes, serveur uniquement : `FIREBASE_ADMIN_PROJECT_ID`, `FIREBASE_ADMIN_CLIENT_EMAIL`, `FIREBASE_ADMIN_PRIVATE_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`
+  - Secrètes, serveur uniquement : `FIREBASE_ADMIN_PROJECT_ID`, `FIREBASE_ADMIN_CLIENT_EMAIL`, `FIREBASE_ADMIN_PRIVATE_KEY`, `RESEND_API_KEY`, `RESEND_WEBHOOK_SECRET`, `EMAIL_UNSUBSCRIBE_SECRET`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`
+  - Configuration e-mail, serveur uniquement : `EMAIL_TRANSPORT`, `EMAIL_FROM`, `EMAIL_REPLY_TO`, `EMAIL_LEGAL_NAME`, `EMAIL_LEGAL_ADDRESS`, `EMAIL_LEGAL_REGISTRATION` (optionnelle)
   - Publique optionnelle : `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`, seulement si l'intégration retenue l'exige (inutile avec Checkout hébergé)

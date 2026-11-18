@@ -20,7 +20,9 @@ export interface SessionAuth {
 
 export type StartSessionResult =
   | { ok: true; cookie: string; user: SessionUser }
-  | { ok: false; reason: "invalid" | "stale" | "unverified" | "forbidden" };
+  | { ok: false; reason: "invalid" | "stale" | "forbidden" }
+  /** The token is valid but the address is not confirmed: the user is returned to send a new link. */
+  | { ok: false; reason: "unverified"; user: SessionUser };
 
 function toUser(decoded: DecodedToken): SessionUser {
   return {
@@ -52,7 +54,7 @@ export async function startSession(
   if (nowSeconds - decoded.auth_time > MAX_AUTH_AGE_SECONDS) return { ok: false, reason: "stale" };
   const user = toUser(decoded);
   if (scope === "admin" && user.role !== "admin") return { ok: false, reason: "forbidden" };
-  if (!user.emailVerified) return { ok: false, reason: "unverified" };
+  if (!user.emailVerified) return { ok: false, reason: "unverified", user };
   try {
     const cookie = await auth.createSessionCookie(idToken, { expiresIn: SESSION_MAX_AGE_SECONDS * 1000 });
     return { ok: true, cookie, user };

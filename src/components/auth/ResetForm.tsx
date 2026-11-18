@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { sendPasswordResetEmail } from "firebase/auth";
+import { requestPasswordResetAction } from "@/lib/auth/email-actions";
 import { clientAuth, isClientAuthConfigured } from "@/lib/firebase/client";
 import { isCode, siteUrl } from "@/lib/firebase/auth-errors";
 import { ConfigMissing, Field, Notice, SubmitButton } from "./FormParts";
@@ -30,7 +31,18 @@ export function ResetForm() {
     }
     setPending(true);
     try {
-      await sendPasswordResetEmail(clientAuth(), email, { url: siteUrl("/connexion?mdp-reinitialise=1") });
+      // The server sends the DOURYA e-mail; while custom e-mails are off it answers
+      // "use_firebase" and the Firebase e-mail is sent from here, as before.
+      const result = await requestPasswordResetAction(email).catch(() => ({ status: "use_firebase" as const }));
+      if (result.status === "rate_limited") {
+        setError("Trop de demandes. Réessayez dans quelques minutes.");
+        return;
+      }
+      if (result.status === "invalid") {
+        setError("Indiquez une adresse e-mail valide.");
+        return;
+      }
+      if (result.status === "use_firebase") await sendPasswordResetEmail(clientAuth(), email, { url: siteUrl("/connexion?mdp-reinitialise=1") });
       setSent(true);
     } catch (err) {
       if (isCode(err, "auth/too-many-requests")) setError("Trop de demandes. Réessayez dans quelques minutes.");
