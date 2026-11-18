@@ -1,5 +1,5 @@
-import { Button, Heading, Link, Section, Text } from "@react-email/components";
-import { EmailLayout, buttonStyle, headingStyle, linkStyle, linkTextStyle, smallTextStyle, textFooter, textStyle } from "./_components/EmailLayout";
+import { Button, Heading, Link, Text } from "@react-email/components";
+import { EmailLayout, PaddedSection, buttonStyle, headingStyle, linkStyle, linkTextStyle, smallTextStyle, textFooter, textStyle } from "./_components/EmailLayout";
 import { previewLegal, type ActionEmailProps } from "./_components/types";
 
 /** Template 1: welcome + e-mail address confirmation (security e-mail). */
@@ -17,11 +17,11 @@ export default function VerifyEmail(props: ActionEmailProps) {
         Bienvenue chez DOURYA
       </Heading>
       <Text style={textStyle}>Merci d&apos;avoir créé votre compte. Pour l&apos;activer, confirmez votre adresse e-mail.</Text>
-      <Section style={{ textAlign: "center", padding: "8px 0 24px" }}>
+      <PaddedSection padding="8px 0 24px" style={{ textAlign: "center" }}>
         <Button href={props.actionUrl} style={buttonStyle}>
           Confirmer mon adresse
         </Button>
-      </Section>
+      </PaddedSection>
       <Text style={smallTextStyle}>Ce lien ne sert qu&apos;une fois et expire après un délai limité.</Text>
       <Text style={linkTextStyle}>
         Si le bouton ne fonctionne pas, copiez ce lien dans votre navigateur :<br />

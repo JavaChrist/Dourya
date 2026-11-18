@@ -32,6 +32,14 @@ describe("renderEmail", () => {
     expect(mail.text).toContain("EMAIL_LEGAL_NAME");
     expect(mail.text).toContain("EMAIL_LEGAL_ADDRESS");
   });
+  it("puts every padding on a <td>, never on a <table> (ignored by Outlook and some webmails)", async () => {
+    for (const type of ["auth-verify-email", "auth-reset-password"] as const) {
+      const mail = await renderEmail(type, { actionUrl: LINK }, BASE);
+      const tables = mail.html.match(/<table[^>]*>/g) ?? [];
+      expect(tables.filter((tag) => /padding:\s*(?!0(?:[;"]|px[;"]))/.test(tag))).toEqual([]);
+      expect(mail.html).toMatch(/<td[^>]*padding:32px 28px 8px/);
+    }
+  });
   it("applies a sanitised override", async () => {
     const mail = await renderEmail("auth-reset-password", { actionUrl: LINK }, BASE, { subject: "Votre nouveau mot de passe" });
     expect(mail.subject).toBe("Votre nouveau mot de passe");

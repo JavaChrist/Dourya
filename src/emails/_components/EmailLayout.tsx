@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import {
   Body,
   Container,
@@ -51,13 +51,10 @@ export function EmailLayout({
           color: colors.ink,
         }}
       >
-        {/* Gmail and Outlook drop <body> styles: the outer margins live on this wrapper table. */}
-        <Section
-          style={{
-            width: "100%",
-            backgroundColor: colors.blush,
-            padding: "24px 16px 32px",
-          }}
+        {/* Gmail and Outlook drop <body> styles: the outer margins live on this wrapper cell. */}
+        <PaddedSection
+          padding="24px 16px 32px"
+          style={{ backgroundColor: colors.blush }}
         >
           <Container
             style={{
@@ -71,12 +68,9 @@ export function EmailLayout({
               tableLayout: "fixed",
             }}
           >
-            <Section
-              style={{
-                backgroundColor: colors.pink,
-                padding: "28px 24px",
-                textAlign: "center",
-              }}
+            <PaddedSection
+              padding="28px 24px"
+              style={{ backgroundColor: colors.pink, textAlign: "center" }}
             >
               <Link href={origin} style={{ textDecoration: "none" }}>
                 <Img
@@ -95,7 +89,7 @@ export function EmailLayout({
                   }}
                 />
               </Link>
-            </Section>
+            </PaddedSection>
             <Section
               style={{
                 height: "6px",
@@ -106,8 +100,8 @@ export function EmailLayout({
             >
               &nbsp;
             </Section>
-            <Section style={{ padding: "32px 28px 8px" }}>{children}</Section>
-            <Section style={{ padding: "8px 28px 28px" }}>
+            <PaddedSection padding="32px 28px 8px">{children}</PaddedSection>
+            <PaddedSection padding="8px 28px 28px">
               <Hr
                 style={{
                   borderColor: colors.pinkSoft,
@@ -179,11 +173,43 @@ export function EmailLayout({
                   </>
                 ) : null}
               </Text>
-            </Section>
+            </PaddedSection>
           </Container>
-        </Section>
+        </PaddedSection>
       </Body>
     </Html>
+  );
+}
+
+/**
+ * Full-width block whose padding sits on a <td>. React Email's <Section> puts
+ * the padding on the <table>, which Outlook and several webmails ignore; cell
+ * padding is honoured by every client.
+ */
+export function PaddedSection({
+  padding,
+  style,
+  children,
+}: {
+  padding: string;
+  style?: CSSProperties;
+  children: ReactNode;
+}) {
+  return (
+    <table
+      role="presentation"
+      width="100%"
+      border={0}
+      cellPadding={0}
+      cellSpacing={0}
+      style={{ width: "100%", borderCollapse: "collapse" }}
+    >
+      <tbody>
+        <tr>
+          <td style={{ ...style, padding }}>{children}</td>
+        </tr>
+      </tbody>
+    </table>
   );
 }
 
