@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkRendered, fictitiousActionUrl, isLocalOrigin, maskAddress, parseTestArgs, senderDomain } from "./email-test";
+import { checkLegal, checkRendered, fictitiousActionUrl, isLocalOrigin, maskAddress, parseTestArgs, senderDomain } from "./email-test";
 
 describe("parseTestArgs", () => {
   it("is a dry run by default, for both templates", () => {
@@ -31,6 +31,17 @@ describe("helpers", () => {
     expect(fictitiousActionUrl("https://dourya.fr", "reset")).toBe("https://dourya.fr/auth/action?mode=resetPassword&oobCode=LIEN-DE-TEST-FICTIF");
     expect(isLocalOrigin("http://localhost:3000")).toBe(true);
     expect(isLocalOrigin("https://dourya.fr")).toBe(false);
+  });
+
+  it("checks the legal mentions", () => {
+    const ok = (l: { name: string; address: string; registration: string }) => checkLegal(l).every((c) => c.ok);
+    expect(ok({ name: "Exemple SAS", address: "1 rue de l'Exemple, 75001 Paris", registration: "" })).toBe(true);
+    expect(ok({ name: "Exemple SAS", address: "1 rue de l'Exemple 75001 Paris", registration: "SIRET 123 456 789 00012" })).toBe(true);
+    expect(ok({ name: "Exemple SAS", address: "1 rue de l'Exemple, 75001 Paris", registration: "RCS Paris 123 456 789" })).toBe(true);
+    expect(ok({ name: "", address: "1 rue de l'Exemple, 75001 Paris", registration: "" })).toBe(false);
+    expect(ok({ name: "Exemple SAS", address: "Paris", registration: "" })).toBe(false);
+    expect(ok({ name: "Exemple SAS", address: "75001 Paris", registration: "" })).toBe(false);
+    expect(ok({ name: "Exemple SAS", address: "1 rue de l'Exemple, 75001 Paris", registration: "SIRET 1234" })).toBe(false);
   });
 
   it("flags a missing legal mention or an unsubscribe link", () => {

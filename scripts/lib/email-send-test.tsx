@@ -15,7 +15,7 @@ import { PRODUCTION_SITE_URL, parseSiteUrl } from "@/config/site";
 import { readEmailConfig } from "@/lib/email/config";
 import { renderEmail, type EmailType } from "@/lib/email/registry";
 import { ResendTransport } from "@/lib/email/transport";
-import { checkRendered, fictitiousActionUrl, isLocalOrigin, maskAddress, parseTestArgs, senderDomain, type TestTemplate } from "./email-test";
+import { checkLegal, checkRendered, fictitiousActionUrl, isLocalOrigin, maskAddress, parseTestArgs, senderDomain, type TestTemplate } from "./email-test";
 
 const TYPES: Record<TestTemplate, EmailType> = { verify: "auth-verify-email", reset: "auth-reset-password" };
 const status = (ok: boolean) => (ok ? "OK" : "ERREUR");
@@ -49,6 +49,14 @@ export async function main(argv: string[]): Promise<number> {
   console.log(`  Domaine d'envoi : ${senderDomain(config.from) ?? "inconnu"} · réponse : ${senderDomain(config.replyTo) ?? "inconnu"} · site : ${new URL(origin).host}`);
   if (isLocalOrigin(origin)) console.log("  Attention : le site est local, le logo et les liens ne s'afficheront pas dans une vraie boîte mail.");
 
+  // Legal mentions are public (printed in every e-mail): shown so that they can be proofread.
+  const legalChecks = checkLegal(config.legal);
+  console.log("\nMentions légales (pied de page de chaque e-mail)");
+  for (const c of legalChecks) console.log(`  ${status(c.ok).padEnd(7)} ${c.label}`);
+  const footer = [config.legal.name, config.legal.address, config.legal.registration].filter(Boolean).join(" · ");
+  if (footer) console.log(`  Texte affiché : ${footer}`);
+  const legalOk = legalChecks.every((c) => c.ok);
+
   let renderOk = true;
   const rendered: { template: TestTemplate; type: EmailType; subject: string; html: string; text: string }[] = [];
   for (const template of args.only) {
@@ -62,7 +70,7 @@ export async function main(argv: string[]): Promise<number> {
     rendered.push({ template, type, subject: email.subject, html: email.html, text: email.text });
   }
 
-  const configOk = config.missing.length === 0;
+  const configOk = config.missing.length === 0 && legalOk;
   console.log(`\nConfiguration resend : ${status(configOk)} · Rendu : ${status(renderOk)}`);
 
   if (!args.send) {
@@ -71,7 +79,7 @@ export async function main(argv: string[]): Promise<number> {
   }
 
   if (onEmulators) return refuse("envoi réel interdit sur les émulateurs Firebase");
-  if (!configOk) return refuse(`configuration incomplète (${config.missing.join(", ")})`);
+  if (!configOk) return refuse(`configuration incomplète (${[...config.missing, ...(legalOk ? [] : ["mentions légales"])].join(", ")})`);
   if (!renderOk) return refuse("le rendu contient une erreur");
   if (!process.stdin.isTTY) return refuse("confirmation interactive requise (terminal)");
 

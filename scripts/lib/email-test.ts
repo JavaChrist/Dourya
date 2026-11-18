@@ -69,6 +69,25 @@ export function checkRendered(input: { html: string; text: string; actionUrl: st
   ];
 }
 
+/**
+ * Completeness of the legal mentions shown in every e-mail footer (LCEN art. 6 III / 19):
+ * a name, a postal address with a French postal code and a city, an optional
+ * SIREN (9 digits) or SIRET (14 digits) registration line.
+ */
+export function checkLegal(legal: { name: string; address: string; registration: string }): RenderCheck[] {
+  const address = legal.address.trim();
+  const postal = /\b\d{5}\b/.exec(address);
+  const city = postal ? address.slice(postal.index + 5).replace(/[^\p{L}]/gu, "") : "";
+  // "SIRET 123 456 789 00012", "RCS Paris 123 456 789"...: one 9- or 14-digit number once spaces are removed.
+  const numbers = legal.registration.replace(/(\d)\s+(?=\d)/g, "$1").match(/\d+/g) ?? [];
+  const checks: RenderCheck[] = [
+    { label: "raison sociale ou nom renseigné", ok: legal.name.trim().length >= 2 },
+    { label: "adresse avec voie, code postal et ville", ok: address.length >= 10 && Boolean(postal) && city.length >= 2 && /\p{L}/u.test(address.slice(0, postal?.index ?? 0)) },
+  ];
+  if (legal.registration.trim()) checks.push({ label: "immatriculation au format SIREN ou SIRET", ok: numbers.some((n) => n.length === 9 || n.length === 14) });
+  return checks;
+}
+
 /** Origins that a mailbox cannot reach: the logo and the links would not load. */
 export function isLocalOrigin(origin: string): boolean {
   const host = new URL(origin).hostname;

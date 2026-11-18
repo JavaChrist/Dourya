@@ -42,5 +42,8 @@
   "overrides": {
     "rollup": "npm:@rollup/wasm-node@^4",
     "@grpc/grpc-js": "^1.14.7"
+  },
+  "engines": {
+    "node": "24.x"
   }
 }
