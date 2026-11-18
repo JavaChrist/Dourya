@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const store = vi.hoisted(() => ({ addSuppression: vi.fn(), recordProviderEvent: vi.fn() }));
 vi.mock("@/lib/email/store", () => store);
-vi.mock("@/lib/log", () => ({ logEvent: vi.fn(), errorCode: () => "test" }));
+vi.mock("@/lib/log", () => ({ logEvent: vi.fn(), errorCode: () => "test", errorCategory: () => "other" }));
 
 import { emailHash } from "@/lib/email/unsubscribe";
 import { POST } from "./route";

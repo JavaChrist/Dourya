@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { Resend } from "resend";
 import { addSuppression, recordProviderEvent, type SuppressionReason } from "@/lib/email/store";
 import { emailHash } from "@/lib/email/unsubscribe";
-import { errorCode, logEvent } from "@/lib/log";
+import { errorCategory, errorCode, logEvent } from "@/lib/log";
 
 const MAX_BODY = 256 * 1024;
 
@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
     if (reason) for (const address of addresses.slice(0, 50)) await addSuppression(emailHash(address), reason);
     logEvent("email_webhook", { event: event.type, ...(reason ? { suppression: reason } : {}) });
   } catch (error) {
-    logEvent("email_webhook_failed", { event: event.type, error: errorCode(error) });
+    logEvent("email_webhook_failed", { event: event.type, error: errorCode(error), category: errorCategory(error) });
     return reply(500); // Resend retries the delivery.
   }
   return reply(200);
