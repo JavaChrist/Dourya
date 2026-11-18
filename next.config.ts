@@ -8,6 +8,8 @@ const nextConfig: NextConfig = {
   partialPrefetching: true,
   env: {
     NEXT_PUBLIC_BUILD_ID: buildId,
+    // Set only when running on the Firebase emulators (npm run dev:emulators); empty otherwise.
+    NEXT_PUBLIC_FIREBASE_AUTH_EMULATOR_HOST: process.env.FIREBASE_AUTH_EMULATOR_HOST ?? "",
   },
   /** Lot 1 URLs stay valid: permanent (308) redirects to the Lot 2 routes. */
   async redirects() {
@@ -16,6 +18,7 @@ const nextConfig: NextConfig = {
       { source: "/produit/:slug", destination: "/produits/:slug", permanent: true },
       { source: "/categorie", destination: "/boutique", permanent: true },
       { source: "/produit", destination: "/boutique", permanent: true },
+      { source: "/compte", destination: "/mon-compte", permanent: true },
     ];
   },
   turbopack: {

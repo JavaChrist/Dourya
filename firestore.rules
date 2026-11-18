@@ -1,0 +1,57 @@
+rules_version = '2';
+
+// DOURYA: least privilege.
+// Every write goes through the server (Firebase Admin SDK, which bypasses these rules)
+// after a session, role, rate-limit and validation check. The browser SDK can only
+// read its own data, never write. The admin role comes from the custom claim only.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return signedIn() && request.auth.token.role == "admin";
+    }
+
+    function isOwner(uid) {
+      return signedIn() && request.auth.uid == uid && request.auth.token.email_verified == true;
+    }
+
+    // Profile and consents: the owner and the admins can read. No client writes.
+    match /users/{uid} {
+      allow read: if isOwner(uid) || isAdmin();
+      allow write: if false;
+
+      match /addresses/{addressId} {
+        allow read: if isOwner(uid) || isAdmin();
+        allow write: if false;
+      }
+    }
+
+    // Orders (written by the server in lot 4). A customer reads only her own orders.
+    match /orders/{orderId} {
+      allow get: if isAdmin() || (signedIn() && resource.data.customerUid == request.auth.uid && request.auth.token.email_verified == true);
+      // A list query is allowed only if it is limited to the caller's own orders.
+      allow list: if isAdmin() || (signedIn() && resource.data.customerUid == request.auth.uid && request.auth.token.email_verified == true);
+      allow write: if false;
+    }
+
+    // GDPR requests: handled in the admin, through the server.
+    match /dataRequests/{requestId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    // Rate-limit counters: server only.
+    match /rateLimits/{key} {
+      allow read, write: if false;
+    }
+
+    // Anything not listed above is refused.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu, Search, ShoppingBag, User, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import type { NavItem } from "@/lib/types";
 import { useCart } from "@/components/cart/CartProvider";
 import { Logo } from "@/components/ui/Logo";
@@ -12,8 +12,26 @@ import { SearchBox, type SearchEntry } from "./SearchBox";
 const iconButton =
   "flex size-11 items-center justify-center rounded-full text-white transition hover:bg-white/15";
 
-export function Header({ nav, searchEntries }: { nav: NavItem[]; searchEntries: SearchEntry[] }) {
-  const pathname = usePathname();
+type HeaderProps = { nav: NavItem[]; searchEntries: SearchEntry[] };
+
+/**
+ * usePathname() suspends on routes whose params are only known at request time
+ * (e.g. /mon-compte/commandes/[id]). The fallback is the same header without the
+ * active link, so nothing moves; on static routes the fallback is never shown.
+ */
+export function Header(props: HeaderProps) {
+  return (
+    <Suspense fallback={<HeaderView {...props} pathname={null} />}>
+      <HeaderWithPath {...props} />
+    </Suspense>
+  );
+}
+
+function HeaderWithPath(props: HeaderProps) {
+  return <HeaderView {...props} pathname={usePathname()} />;
+}
+
+function HeaderView({ nav, searchEntries, pathname }: HeaderProps & { pathname: string | null }) {
   const [searchOpen, setSearchOpen] = useState(false);
   const menuRef = useRef<HTMLDialogElement>(null);
 
@@ -81,7 +99,7 @@ export function Header({ nav, searchEntries }: { nav: NavItem[]; searchEntries: 
           >
             {searchOpen ? <X aria-hidden className="size-6" /> : <Search aria-hidden className="size-6" />}
           </button>
-          <Link href="/compte" aria-label="Mon compte" className={`${iconButton} hidden sm:flex`}>
+          <Link href="/mon-compte" aria-label="Mon compte" className={`${iconButton} hidden sm:flex`}>
             <User aria-hidden className="size-6" />
           </Link>
           <CartLink />
@@ -127,7 +145,7 @@ export function Header({ nav, searchEntries }: { nav: NavItem[]; searchEntries: 
         </nav>
         <div className="border-t border-white/30 p-2">
           <Link
-            href="/compte"
+            href="/mon-compte"
             onClick={closeMenu}
             className="flex items-center gap-3 rounded-md px-4 py-3 text-xl font-bold hover:bg-white/15"
           >

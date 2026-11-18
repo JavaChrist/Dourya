@@ -42,3 +42,11 @@ next-env.d.ts
 
 # allow env template
 !.env.example
+
+# Firebase emulators
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+storage-debug.log
+database-debug.log
+.emulators-tmp/

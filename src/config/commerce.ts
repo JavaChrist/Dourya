@@ -35,4 +35,15 @@ export const commerceConfig = {
   checkoutEnabled: false,
   /** Shipping is computed in Lot 4: no estimate is shown before that. */
   shippingEstimateEnabled: false,
+  /**
+   * Guest checkout (no account needed to order). On by default: making an account
+   * mandatory needs the merchant's validation. Used from Lot 4.
+   */
+  guestCheckoutEnabled: true,
+} as const;
+
+export const accountConfig = {
+  maxAddresses: 5,
+  /** Countries offered for addresses. To adjust in Lot 4 with the real shipping zones (not confirmed yet). */
+  addressCountries: [{ code: "FR", name: "France" }],
 } as const;
