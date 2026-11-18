@@ -9,6 +9,8 @@ import type { SessionScope } from "@/lib/auth/config";
 import { clientAuth, isClientAuthConfigured } from "@/lib/firebase/client";
 import { signInErrorMessage, siteUrl } from "@/lib/firebase/auth-errors";
 import { ConfigMissing, Field, Notice, SubmitButton } from "./FormParts";
+import { GoogleButton, OrDivider } from "./GoogleButton";
+import { PasswordField } from "./PasswordField";
 import { useResetOnLeave } from "./useResetOnLeave";
 
 const NOTICES: Record<string, { tone: "info" | "success"; text: string }> = {
@@ -102,9 +104,15 @@ export function LoginForm({ scope }: { scope: SessionScope }) {
       {reset && <Notice tone="success">Mot de passe modifié. Connectez-vous avec le nouveau mot de passe.</Notice>}
       {error && <Notice tone="error">{error}</Notice>}
       {info && <Notice tone="info">{info}</Notice>}
+      {scope === "customer" && (
+        <>
+          <GoogleButton next={params.get("next") ?? undefined} disabled={pending} />
+          <OrDivider />
+        </>
+      )}
 
       <Field id="email" label="Adresse e-mail" type="email" autoComplete="email" inputMode="email" required maxLength={254} />
-      <Field id="password" label="Mot de passe" type="password" autoComplete="current-password" required maxLength={128} />
+      <PasswordField id="password" label="Mot de passe" autoComplete="current-password" required maxLength={128} />
       {scope === "customer" && (
         <p className="text-sm">
           <Link href="/mot-de-passe-oublie" className="font-bold text-link hover:underline">

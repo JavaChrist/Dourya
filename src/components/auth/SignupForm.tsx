@@ -9,6 +9,8 @@ import { PASSWORD_MAX, PASSWORD_MIN, passwordProblem } from "@/lib/account/valid
 import { clientAuth, isClientAuthConfigured } from "@/lib/firebase/client";
 import { isCode, siteUrl } from "@/lib/firebase/auth-errors";
 import { ConfigMissing, Field, Notice, SubmitButton } from "./FormParts";
+import { GoogleButton, OrDivider } from "./GoogleButton";
+import { PasswordField } from "./PasswordField";
 import { useResetOnLeave } from "./useResetOnLeave";
 
 type Errors = { email?: string; password?: string; confirm?: string; form?: string };
@@ -73,11 +75,12 @@ export function SignupForm() {
   return (
     <form ref={formRef} onSubmit={onSubmit} noValidate className="space-y-4" aria-busy={pending}>
       {errors.form && <Notice tone="error">{errors.form}</Notice>}
+      <GoogleButton disabled={pending} />
+      <OrDivider />
       <Field id="email" label="Adresse e-mail" type="email" autoComplete="email" inputMode="email" required maxLength={254} error={errors.email} />
-      <Field
+      <PasswordField
         id="password"
         label="Mot de passe"
-        type="password"
         autoComplete="new-password"
         required
         minLength={PASSWORD_MIN}
@@ -85,7 +88,7 @@ export function SignupForm() {
         hint={`${PASSWORD_MIN} caractères minimum. Une phrase de passe est idéale.`}
         error={errors.password}
       />
-      <Field id="confirm" label="Confirmer le mot de passe" type="password" autoComplete="new-password" required maxLength={PASSWORD_MAX} error={errors.confirm} />
+      <PasswordField id="confirm" label="Confirmer le mot de passe" autoComplete="new-password" required maxLength={PASSWORD_MAX} error={errors.confirm} />
       <p className="text-sm text-ink-muted">
         Vos données servent à gérer votre compte et vos commandes. Voir la{" "}
         <Link href="/infos/confidentialite" className="font-bold text-link hover:underline">

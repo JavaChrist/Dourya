@@ -9,7 +9,8 @@ import { AUTH_ACTION_PATH, isAuthActionMode, isOobCode, type AuthActionMode } fr
 import { clientAuth, isClientAuthConfigured } from "@/lib/firebase/client";
 import { isCode } from "@/lib/firebase/auth-errors";
 import { ButtonLink } from "@/components/ui/ButtonLink";
-import { ConfigMissing, Field, Notice, SubmitButton } from "./FormParts";
+import { ConfigMissing, Notice, SubmitButton } from "./FormParts";
+import { PasswordField } from "./PasswordField";
 
 type Action = { mode: AuthActionMode; code: string } | null;
 
@@ -127,10 +128,9 @@ export function AuthActionHandler() {
         <form onSubmit={onSubmit} noValidate className="space-y-4" aria-busy={pending}>
           <p className="text-ink">Choisissez un nouveau mot de passe pour votre compte.</p>
           {errors.form && <Notice tone="error">{errors.form}</Notice>}
-          <Field
+          <PasswordField
             id="password"
             label="Nouveau mot de passe"
-            type="password"
             autoComplete="new-password"
             required
             minLength={PASSWORD_MIN}
@@ -138,7 +138,7 @@ export function AuthActionHandler() {
             hint={`${PASSWORD_MIN} caractères minimum. Une phrase de passe est idéale.`}
             error={errors.password}
           />
-          <Field id="confirm" label="Confirmer le mot de passe" type="password" autoComplete="new-password" required maxLength={PASSWORD_MAX} error={errors.confirm} />
+          <PasswordField id="confirm" label="Confirmer le mot de passe" autoComplete="new-password" required maxLength={PASSWORD_MAX} error={errors.confirm} />
           <SubmitButton pending={pending} pendingLabel="Enregistrement…">
             Enregistrer le mot de passe
           </SubmitButton>
