@@ -1,0 +1,148 @@
+@import "tailwindcss";
+
+/*
+ * DOURYA theme tokens.
+ * Every colour, radius, font and section background used by the components
+ * comes from these variables. Change them here (later: from the admin theme
+ * editor) instead of editing components.
+ */
+:root {
+  /* Brand palette (official) */
+  --brand-pink: #ff3c72;
+  --brand-pink-soft: #ff739a;
+  --brand-white: #ffffff;
+  --brand-yellow: #ffe167;
+
+  /* Contrast helpers: derived from the palette, used where AA contrast is needed */
+  --brand-pink-strong: #c2185b; /* pink text on white: 5.9:1 */
+  --brand-ink: #2b1220; /* near-black text: 15:1 on white, 6:1 on pink */
+  --brand-blush: #fff0f4; /* very light pink surface */
+
+  /* Semantic roles (what components use) */
+  --dy-color-primary: var(--brand-pink);
+  --dy-color-secondary: var(--brand-pink-soft);
+  --dy-color-accent: var(--brand-yellow);
+  --dy-color-surface: var(--brand-white);
+  --dy-color-surface-muted: var(--brand-blush);
+  --dy-color-text: var(--brand-ink);
+  --dy-color-text-muted: #6b4a5a;
+  --dy-color-text-on-primary: var(--brand-white);
+  --dy-color-link: var(--brand-pink-strong);
+
+  --dy-color-button-bg: var(--brand-yellow);
+  --dy-color-button-text: var(--brand-ink);
+  --dy-color-button-alt-bg: var(--brand-white);
+  --dy-color-button-alt-text: var(--brand-pink-strong);
+
+  --dy-color-focus: var(--brand-ink);
+
+  /* Shape */
+  --dy-radius-sm: 0.5rem;
+  --dy-radius-md: 1rem;
+  --dy-radius-lg: 1.75rem;
+  --dy-radius-pill: 999px;
+
+  /* Typography (fonts are loaded in layout.tsx) */
+  --dy-font-body: var(--font-nunito), system-ui, sans-serif;
+  --dy-font-display: var(--font-fredoka), var(--font-nunito), system-ui, sans-serif;
+
+  /* Section backgrounds: original DOURYA artworks */
+  --bg-image-grid: url("/brand/bg-grid.webp");
+  --bg-image-sparkle: url("/brand/bg-sparkle.webp");
+  --bg-tile-size: 1200px auto;
+}
+
+@theme inline {
+  --color-primary: var(--dy-color-primary);
+  --color-secondary: var(--dy-color-secondary);
+  --color-accent: var(--dy-color-accent);
+  --color-surface: var(--dy-color-surface);
+  --color-surface-muted: var(--dy-color-surface-muted);
+  --color-ink: var(--dy-color-text);
+  --color-ink-muted: var(--dy-color-text-muted);
+  --color-on-primary: var(--dy-color-text-on-primary);
+  --color-link: var(--dy-color-link);
+  --color-pink-strong: var(--brand-pink-strong);
+  --color-button: var(--dy-color-button-bg);
+  --color-button-ink: var(--dy-color-button-text);
+  --color-button-alt: var(--dy-color-button-alt-bg);
+  --color-button-alt-ink: var(--dy-color-button-alt-text);
+
+  --radius-sm: var(--dy-radius-sm);
+  --radius-md: var(--dy-radius-md);
+  --radius-lg: var(--dy-radius-lg);
+
+  --font-sans: var(--dy-font-body);
+  --font-display: var(--dy-font-display);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--dy-color-surface);
+  color: var(--dy-color-text);
+  font-family: var(--dy-font-body);
+}
+
+:focus-visible {
+  outline: 3px solid var(--dy-color-focus);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+/* Section background variants (see components/ui/Section.tsx) */
+.section-bg-grid {
+  background-color: var(--dy-color-primary);
+  background-image: var(--bg-image-grid);
+  background-size: var(--bg-tile-size);
+  background-repeat: repeat;
+}
+.section-bg-sparkle {
+  background-color: var(--dy-color-primary);
+  background-image: var(--bg-image-sparkle);
+  background-size: var(--bg-tile-size);
+  background-repeat: repeat;
+}
+
+/* Promo banner marquee */
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+.marquee-track {
+  animation: marquee var(--marquee-duration, 30s) linear infinite;
+}
+.marquee[data-paused="true"] .marquee-track,
+.marquee:hover .marquee-track,
+.marquee:focus-within .marquee-track {
+  animation-play-state: paused;
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .marquee-track {
+    animation: none;
+  }
+}
