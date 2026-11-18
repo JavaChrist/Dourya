@@ -12,6 +12,7 @@
     "test:integration": "node scripts/emulators.mjs \"vitest run --project integration\"",
     "typecheck": "tsc --noEmit",
     "email:preview": "email dev --dir src/emails --port 3030",
+    "email:test": "node scripts/email-send-test.mjs",
     "admin:role": "node --env-file-if-exists=.env.local scripts/admin-role.mjs"
   },
   "dependencies": {
