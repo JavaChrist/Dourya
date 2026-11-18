@@ -31,7 +31,7 @@ export const commerceConfig = {
   maxQuantityPerLine: 10,
   /** Max number of distinct lines accepted by the server. */
   maxCartLines: 50,
-  /** Checkout opens in the payment lot (Stripe Checkout). Demo products are never purchasable. */
+  /** Checkout opens in Lot 4.3 (Mollie). Demo products are never purchasable. */
   checkoutEnabled: false,
   /** Shipping is computed in Lot 4: no estimate is shown before that. */
   shippingEstimateEnabled: false,
@@ -40,6 +40,22 @@ export const commerceConfig = {
    * mandatory needs the merchant's validation. Used from Lot 4.
    */
   guestCheckoutEnabled: true,
+  /**
+   * How long stock is held while a Mollie payment is awaited. Technical value
+   * to be confirmed by the merchant; the hold is released when the payment
+   * fails, expires or is cancelled.
+   */
+  stockReservationMinutes: 30,
+} as const;
+
+/**
+ * Mollie payment methods offered at checkout. Card only by default: Apple Pay
+ * and Google Pay stay off until they are activated on the Mollie account.
+ * Amounts are always in EUR cents, recomputed on the server.
+ */
+export const paymentConfig = {
+  provider: "mollie",
+  methods: { creditcard: true, applepay: false, googlepay: false },
 } as const;
 
 export const accountConfig = {

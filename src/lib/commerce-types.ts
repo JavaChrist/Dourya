@@ -3,7 +3,9 @@
  * Firestore collections will follow these types.
  *
  * Lot 3: auth (Firebase Auth), roles
- * Lot 4: orders, Stripe Checkout payments (card, Apple Pay / Google Pay), webhooks, refunds, shipping
+ * Lot 4: orders, Mollie payments (card, Apple Pay / Google Pay if enabled), webhooks, refunds, shipping.
+ *        The Lot 4 order model lives in src/lib/orders/types.ts; `Order` below is the
+ *        read model of the account pages until they move to it (Lot 4.4).
  * Lot 5: sales and audience dashboard
  * Lot 6: media library, theme, promotions
  */
@@ -48,9 +50,8 @@ export type Order = {
   totalCents: number;
   status: OrderStatus;
   shippingAddress: ShippingAddress;
-  /** Stripe ids, set by the server from verified webhooks only (never trusted from the client). */
-  stripeCheckoutSessionId?: string;
-  stripePaymentIntentId?: string;
+  /** Mollie payment id, set by the server only (never trusted from the client). */
+  molliePaymentId?: string;
   createdAt: string;
 };
 

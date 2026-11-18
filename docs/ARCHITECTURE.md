@@ -128,7 +128,7 @@ Le compte doit exister (inscription faite). Le changement de rôle révoque les 
 
 - Le navigateur ne stocke que `productId`, `variantId`, `quantity` et le texte de personnalisation. Tout prix envoyé par le navigateur est ignoré.
 - `priceCartAction` recalcule chaque ligne côté serveur : produit publié, variante active et tarifée, stock, plafond par ligne, fenêtre et règles de personnalisation. Les quantités réduites par le serveur sont réappliquées au panier local.
-- Le paiement reste bloqué tant que le panier contient un produit de démo ou une ligne en erreur. Aucun frais de livraison n'est calculé (lot 4).
+- Le paiement reste bloqué tant que le panier contient un produit de démo ou une ligne en erreur. Les frais de livraison sont calculés côté serveur par `quoteShipping` (lot 4.1), à partir des grilles saisies par l'admin.
 - Personnalisation désactivée par défaut ; activable par produit (`personalisation.enabled`), par variante (`variantIds`) et par période (`availableFrom` / `availableUntil`).
 
 ## Domaines et référencement
@@ -157,10 +157,10 @@ Le compte doit exister (inscription faite). Le changement de rôle révoque les 
 ## Lots suivants (préparé, non développé)
 
 - **Firebase** : une implémentation Firestore de `CatalogRepository` remplacera `fixture-repository.ts`, sans changer les composants. Auth Firebase en place (lot 3).
-- **Stripe** (remplace Mollie, décision du 2026-11-18) : Stripe Checkout hébergé, session créée uniquement côté serveur à partir du panier recalculé (jamais d'un prix navigateur). Carte bancaire, Apple Pay et Google Pay sur les appareils compatibles (activés dans le tableau de bord Stripe, rien à coder côté client). La commande n'est confirmée que par le webhook signé (`checkout.session.completed`, `payment_intent.payment_failed`, `charge.refunded`), jamais par la page de retour. Historique des transactions et données financières de l'admin alimentés par ces événements. Aucune intégration avant le lot Paiement.
+- **Mollie** (lot 4, remplace Stripe) : API REST appelée côté serveur uniquement (clé secrète `MOLLIE_API_KEY`), sans SDK. Paiement créé de façon idempotente à partir du panier recalculé, montants en centimes EUR. Le webhook ne contient qu'un identifiant : le paiement est relu chez Mollie à chaque notification, et seul ce relevé change la commande. Carte bancaire ; Apple Pay et Google Pay seulement s'ils sont activés sur le compte Mollie (`paymentConfig`).
+  - Lot 4.1 (fait) : modèle `src/lib/orders/types.ts`, transitions `src/lib/orders/transitions.ts` (paiement et préparation séparés, webhook répété sans effet, jamais de retour arrière après paiement, paiement tardif accepté et signalé), lecture d'un paiement Mollie `src/lib/orders/mollie-status.ts` (montant, devise et commande vérifiés), livraison `src/config/shipping.ts` + `src/lib/shipping/quote.ts` (zones, grilles par poids, épaisseur, format, enveloppe et service, seuil de gratuité optionnel). Aucune grille saisie : aucun mode de livraison proposé, paiement bloqué.
 - **Vercel** : `VERCEL_GIT_COMMIT_SHA` sert d'identifiant de version pour la modale « Nouvelle version disponible ».
-- Variables (valeurs uniquement dans `.env.local` et Vercel ; `NEXT_PUBLIC_FIREBASE_*` et `FIREBASE_ADMIN_*` lues depuis le lot 3, e-mails au lot 3 bis, Stripe au lot 4) :
+- Variables (valeurs uniquement dans `.env.local` et Vercel ; `NEXT_PUBLIC_FIREBASE_*` et `FIREBASE_ADMIN_*` lues depuis le lot 3, e-mails au lot 3 bis, Mollie au lot 4) :
   - Publiques : `NEXT_PUBLIC_FIREBASE_API_KEY`, `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`, `NEXT_PUBLIC_FIREBASE_PROJECT_ID`, `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`, `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`, `NEXT_PUBLIC_FIREBASE_APP_ID`, `NEXT_PUBLIC_SITE_URL`
-  - Secrètes, serveur uniquement : `FIREBASE_ADMIN_PROJECT_ID`, `FIREBASE_ADMIN_CLIENT_EMAIL`, `FIREBASE_ADMIN_PRIVATE_KEY`, `RESEND_API_KEY`, `RESEND_WEBHOOK_SECRET`, `EMAIL_UNSUBSCRIBE_SECRET`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`
+  - Secrètes, serveur uniquement : `FIREBASE_ADMIN_PROJECT_ID`, `FIREBASE_ADMIN_CLIENT_EMAIL`, `FIREBASE_ADMIN_PRIVATE_KEY`, `RESEND_API_KEY`, `RESEND_WEBHOOK_SECRET`, `EMAIL_UNSUBSCRIBE_SECRET`, `MOLLIE_API_KEY` (lot 4.3). `STRIPE_SECRET_KEY` et `STRIPE_WEBHOOK_SECRET` ne sont plus lues
   - Configuration e-mail, serveur uniquement : `EMAIL_TRANSPORT`, `EMAIL_FROM`, `EMAIL_REPLY_TO`, `EMAIL_LEGAL_NAME`, `EMAIL_LEGAL_ADDRESS`, `EMAIL_LEGAL_REGISTRATION` (optionnelle)
-  - Publique optionnelle : `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`, seulement si l'intégration retenue l'exige (inutile avec Checkout hébergé)
