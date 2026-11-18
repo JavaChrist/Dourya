@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
-import { InfoPlaceholder } from "@/components/ui/InfoPlaceholder";
+import { CartView } from "@/components/cart/CartView";
 
-export const metadata: Metadata = { title: "Panier" };
+export const metadata: Metadata = { title: "Panier", robots: { index: false } };
 
 export default function CartPage() {
   return (
-    <InfoPlaceholder title="Panier">
-      <p>Le panier arrive au lot 2, le paiement Mollie au lot 4.</p>
-      <p>Aucune commande ni aucun paiement n&apos;est possible pour le moment.</p>
-    </InfoPlaceholder>
+    <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+      <h1 className="font-display text-4xl font-semibold text-pink-strong">Panier</h1>
+      <CartView />
+    </div>
   );
 }

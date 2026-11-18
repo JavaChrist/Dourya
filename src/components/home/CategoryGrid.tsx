@@ -25,7 +25,7 @@ export function CategoryGrid({
         {categories.map((cat, i) => (
           <li key={cat.slug} className={categories.length % 2 === 1 && i === categories.length - 1 ? "col-span-2 md:col-span-1" : ""}>
             <Link
-              href={`/categorie/${cat.slug}`}
+              href={`/categories/${cat.slug}`}
               className="group flex h-full flex-col items-center rounded-lg bg-white p-5 text-center shadow-[0_6px_0_rgba(43,18,32,0.18)] transition hover:-translate-y-1 sm:p-8"
             >
               <span className="relative flex size-20 items-center justify-center overflow-hidden rounded-full bg-surface-muted ring-4 ring-accent transition group-hover:rotate-6 sm:size-28">

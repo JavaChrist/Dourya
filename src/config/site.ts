@@ -13,9 +13,10 @@ export const site = {
 };
 
 export const mainNav: NavItem[] = [
-  { label: "Prints", href: "/categorie/prints" },
-  { label: "Stickers", href: "/categorie/stickers" },
-  { label: "Porte-clés", href: "/categorie/porte-cles" },
+  { label: "Boutique", href: "/boutique" },
+  { label: "Prints", href: "/categories/prints" },
+  { label: "Stickers", href: "/categories/stickers" },
+  { label: "Porte-clés", href: "/categories/porte-cles" },
   { label: "Mail Club", href: "/infos/mail-club" },
 ];
 

@@ -6,6 +6,7 @@ import type { Category } from "@/lib/types";
  */
 export const categories: Category[] = [
   {
+    id: "cat-prints",
     slug: "prints",
     name: "Prints",
     description: "Illustrations imprimées",
@@ -14,6 +15,7 @@ export const categories: Category[] = [
     order: 1,
   },
   {
+    id: "cat-stickers",
     slug: "stickers",
     name: "Stickers",
     description: "Stickers illustrés",
@@ -22,6 +24,7 @@ export const categories: Category[] = [
     order: 2,
   },
   {
+    id: "cat-porte-cles",
     slug: "porte-cles",
     name: "Porte-clés",
     description: "Keychains illustrés",
@@ -31,6 +34,7 @@ export const categories: Category[] = [
   },
   {
     // To confirm before activation (see README).
+    id: "cat-headbands",
     slug: "headbands",
     name: "Headbands",
     description: "Catégorie à confirmer",

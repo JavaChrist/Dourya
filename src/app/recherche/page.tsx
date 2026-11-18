@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
-import { getProducts, getVisibleCategories } from "@/lib/catalog";
+import { getSearchEntries } from "@/lib/catalog/search";
 
 export const metadata: Metadata = { title: "Recherche" };
 
@@ -11,20 +11,11 @@ const normalize = (s: string) =>
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "");
 
-function searchEntries() {
-  const cats = getVisibleCategories();
-  const catName = Object.fromEntries(cats.map((c) => [c.slug, c.name]));
-  return [
-    ...cats.map((c) => ({ label: c.name, href: `/categorie/${c.slug}`, hint: "Catégorie" })),
-    ...getProducts().map((p) => ({ label: p.name, href: `/produit/${p.slug}`, hint: catName[p.categorySlug] ?? "" })),
-  ];
-}
-
 /** Reads searchParams inside Suspense so the App Shell stays URL-independent. */
 async function Results({ searchParams }: { searchParams: PageProps<"/recherche">["searchParams"] }) {
   const raw = (await searchParams).q;
   const q = (Array.isArray(raw) ? raw[0] : (raw ?? "")).trim();
-  const results = q ? searchEntries().filter((e) => normalize(e.label).includes(normalize(q))) : [];
+  const results = q ? (await getSearchEntries()).filter((e) => normalize(e.label).includes(normalize(q))) : [];
 
   return (
     <div className="mt-6">

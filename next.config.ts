@@ -9,6 +9,15 @@ const nextConfig: NextConfig = {
   env: {
     NEXT_PUBLIC_BUILD_ID: buildId,
   },
+  /** Lot 1 URLs stay valid: permanent (308) redirects to the Lot 2 routes. */
+  async redirects() {
+    return [
+      { source: "/categorie/:slug", destination: "/categories/:slug", permanent: true },
+      { source: "/produit/:slug", destination: "/produits/:slug", permanent: true },
+      { source: "/categorie", destination: "/boutique", permanent: true },
+      { source: "/produit", destination: "/boutique", permanent: true },
+    ];
+  },
   turbopack: {
     rules: {
       "*.css": {

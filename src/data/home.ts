@@ -16,9 +16,9 @@ export const promoBanner: PromoBannerConfig = {
   enabled: true,
   durationSeconds: 28,
   messages: [
-    { id: "m1", text: "Bienvenue dans la boutique DOURYA", link: { href: "/categorie/prints" } },
+    { id: "m1", text: "Bienvenue dans la boutique DOURYA", link: { href: "/categories/prints" } },
     { id: "m2", text: "Message promotionnel de démonstration" },
-    { id: "m3", text: "Découvrez les stickers", link: { href: "/categorie/stickers" } },
+    { id: "m3", text: "Découvrez les stickers", link: { href: "/categories/stickers" } },
   ],
 };
 
@@ -31,7 +31,7 @@ export const heroCarousel: AutoCarouselConfig = {
       title: "Prints illustrés",
       subtitle: "Visuel de démonstration : remplacez-le par une vraie photo.",
       background: { kind: "sparkle" },
-      link: { href: "/categorie/prints", label: "Voir les prints" },
+      link: { href: "/categories/prints", label: "Voir les prints" },
       isDemo: true,
     },
     {
@@ -39,7 +39,7 @@ export const heroCarousel: AutoCarouselConfig = {
       title: "Stickers",
       subtitle: "Visuel de démonstration : remplacez-le par une vraie photo.",
       background: { kind: "grid" },
-      link: { href: "/categorie/stickers", label: "Voir les stickers" },
+      link: { href: "/categories/stickers", label: "Voir les stickers" },
       isDemo: true,
     },
     {
@@ -47,7 +47,7 @@ export const heroCarousel: AutoCarouselConfig = {
       title: "Porte-clés",
       subtitle: "Visuel de démonstration : remplacez-le par une vraie photo.",
       background: { kind: "solid", color: "var(--brand-pink-soft)" },
-      link: { href: "/categorie/porte-cles", label: "Voir les porte-clés" },
+      link: { href: "/categories/porte-cles", label: "Voir les porte-clés" },
       isDemo: true,
     },
   ],
@@ -58,11 +58,11 @@ export const manualCarousel: ManualCarouselConfig = {
   subtitle: "Produits de démonstration, en attendant les vraies créations.",
   background: { kind: "none" },
   slides: [
-    { id: "s1", title: "Print démo A5", link: { href: "/produit/demo-print-a5" }, isDemo: true, background: { kind: "grid" } },
-    { id: "s2", title: "Sticker démo", link: { href: "/produit/demo-sticker" }, isDemo: true, background: { kind: "sparkle" } },
-    { id: "s3", title: "Porte-clés démo", link: { href: "/produit/demo-porte-cles" }, isDemo: true, background: { kind: "solid", color: "var(--brand-pink-soft)" } },
-    { id: "s4", title: "Print démo A4", link: { href: "/produit/demo-print-a4" }, isDemo: true, background: { kind: "grid" } },
-    { id: "s5", title: "Planche de stickers démo", link: { href: "/produit/demo-planche-stickers" }, isDemo: true, background: { kind: "sparkle" } },
+    { id: "s1", title: "Print démo A5", link: { href: "/produits/demo-print-a5" }, isDemo: true, background: { kind: "grid" } },
+    { id: "s2", title: "Sticker démo", link: { href: "/produits/demo-sticker" }, isDemo: true, background: { kind: "sparkle" } },
+    { id: "s3", title: "Porte-clés démo", link: { href: "/produits/demo-porte-cles" }, isDemo: true, background: { kind: "solid", color: "var(--brand-pink-soft)" } },
+    { id: "s4", title: "Print démo A4", link: { href: "/produits/demo-print-a4" }, isDemo: true, background: { kind: "grid" } },
+    { id: "s5", title: "Planche de stickers démo", link: { href: "/produits/demo-planche-stickers" }, isDemo: true, background: { kind: "sparkle" } },
   ],
 };
 
