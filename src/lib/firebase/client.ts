@@ -1,5 +1,12 @@
 import { getApp, getApps, initializeApp } from "firebase/app";
-import { connectAuthEmulator, getAuth, inMemoryPersistence, initializeAuth, type Auth } from "firebase/auth";
+import {
+  browserPopupRedirectResolver,
+  connectAuthEmulator,
+  getAuth,
+  inMemoryPersistence,
+  initializeAuth,
+  type Auth,
+} from "firebase/auth";
 import { EMULATOR_PROJECT_ID, isPlaceholder } from "./shared";
 
 /**
@@ -30,7 +37,8 @@ export function clientAuth(): Auth {
     auth = getAuth(getApp());
   } else {
     const app = initializeApp(config);
-    auth = initializeAuth(app, { persistence: inMemoryPersistence });
+    // initializeAuth (unlike getAuth) adds no popup handler: without it signInWithPopup fails with auth/argument-error.
+    auth = initializeAuth(app, { persistence: inMemoryPersistence, popupRedirectResolver: browserPopupRedirectResolver });
     if (emulatorHost) connectAuthEmulator(auth, `http://${emulatorHost}`, { disableWarnings: true });
   }
   auth.languageCode = "fr";
