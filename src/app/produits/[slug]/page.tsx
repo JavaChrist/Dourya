@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import { Archive, Info, Truck } from "lucide-react";
 import { commerceConfig, priceMention } from "@/config/commerce";
 import { getShownProducts, getProductForPage, getVisibleCategories } from "@/lib/catalog";
-import { availableStock, productPageState, variantAvailability } from "@/lib/catalog/visibility";
+import { availableStock, productPageState, stockToValidate, variantAvailability } from "@/lib/catalog/visibility";
 import { productVisuals } from "@/lib/catalog/visuals";
 import type { Product, ProductVariant } from "@/lib/types";
 import { DemoBadge } from "@/components/ui/DemoBadge";
@@ -54,7 +54,8 @@ function variantOptions(product: Product): VariantOption[] {
         id: v.id,
         name: v.name,
         priceCents: v.priceCents,
-        note: availabilityNote(v),
+        // A draft whose stock is not set yet would read "Rupture de stock": say it is still to validate.
+        note: product.status === "draft" && stockToValidate(v) ? "Stock à valider" : availabilityNote(v),
         purchasable: product.status === "published" && (a.kind === "made_to_order" || a.kind === "in_stock"),
         maxQuantity: Math.min(cap, availableStock(v) ?? Infinity),
       };
@@ -112,7 +113,7 @@ async function ProductContent({ params }: { params: PageProps<"/produits/[slug]"
         {product.status === "draft" && (
           <p className="mt-4 flex gap-2 rounded-md border-2 border-dashed border-ink/40 px-4 py-3 text-sm text-ink" role="note">
             <Info aria-hidden className="mt-0.5 size-4 shrink-0" />
-            Brouillon visible sur la préversion seulement : prix, stock et regroupement à valider avant publication.
+            Brouillon visible sur la préversion seulement, vente fermée : stock, variantes et regroupement à valider avant publication.
           </p>
         )}
 

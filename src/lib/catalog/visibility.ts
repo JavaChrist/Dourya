@@ -29,6 +29,11 @@ export function availableStock(variant: ProductVariant): number | null {
   return Math.max(0, variant.stock ?? 0);
 }
 
+/** Stocked variant with no stock count entered yet (counts as 0, so it cannot be sold). */
+export function stockToValidate(variant: ProductVariant): boolean {
+  return variant.stockMode === "stocked" && (variant.stock === null || variant.stock === undefined);
+}
+
 /** A variant can be added to the cart: active, priced and not out of stock. */
 export function isVariantPurchasable(variant: ProductVariant): boolean {
   if (!variant.active || variant.priceCents === null) return false;

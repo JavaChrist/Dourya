@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { Product } from "@/lib/types";
 import { formatPrice } from "@/lib/format";
-import { minPrice, productPageState } from "@/lib/catalog/visibility";
+import { minPrice, productPageState, stockToValidate } from "@/lib/catalog/visibility";
 import { productVisuals } from "@/lib/catalog/visuals";
 import { DemoBadge } from "@/components/ui/DemoBadge";
 import { DraftBadge } from "@/components/ui/DraftBadge";
@@ -20,7 +20,7 @@ export function ProductCard({ product }: { product: Product }) {
         <SlideVisual slide={visual} sizes="(max-width: 768px) 50vw, 25vw" />
         {unavailable && (
           <span className="absolute bottom-2 left-2 rounded-full bg-white/95 px-2.5 py-0.5 text-xs font-bold text-ink">
-            {price === null ? "Prix à venir" : "Indisponible"}
+            {price === null ? "Prix à venir" : product.status === "draft" && product.variants.some(stockToValidate) ? "Stock à valider" : "Indisponible"}
           </span>
         )}
       </div>

@@ -1,78 +1,65 @@
-# Photos produits : à valider avec Lizzie avant publication
+# Fiches produits : à valider avec Lizzie avant publication
 
-Les 29 galeries de `DOURYA-photos-produits/PHOTOS` sont importées en **brouillon**
-(`src/data/real-products.ts`). Elles s'affichent uniquement sur la préversion
-`stripe-test` et en local (`next dev`), avec le badge « Brouillon ». Sur dourya.fr,
-rien ne change : elles restent invisibles et ne peuvent pas être achetées.
+30 fiches réelles sont en **brouillon** (`src/data/real-products.ts`) : une par galerie
+photo (29) et le pack complet de prints Twilight. Elles s'affichent uniquement sur la
+préversion `stripe-test` et en local (`next dev`), avec le badge « Brouillon ». Sur
+dourya.fr, rien ne change : elles restent invisibles. La vente est fermée partout
+(brouillon et stock non renseigné : « Stock à valider »).
 
-Rien n'a été inventé : pas de prix (« Prix à venir »), pas de stock, pas de format,
-pas de description. Les noms viennent des noms de dossiers.
+Préversion : https://dourya-git-stripe-test-javachrist-projects.vercel.app/boutique
 
-Le fichier `galeries.json` n'a pas été fourni : la **photo principale** de chaque
-galerie est provisoirement la première photo par ordre de nom de fichier.
+## 1. Prix appliqués (grille validée, en centimes)
 
-## 1. Photos principales proposées (à confirmer ou changer)
+| Produit | Fiches | Prix |
+|---|---|---:|
+| Sticker à l'unité | Doudou lapin, Fée, Milk, Nokio, Téléphone à clapet | 195 |
+| Pack de stickers | Bookish, Coquette, Doggo, Notendo, Papillons, Poiscailles, Twilight, Witchy | 695 |
+| Print à l'unité | Chat Roi 1 à 3, Doggo 1 et 2, Gros Dodo, Grozyeux 1 et 2, Twilight à l'unité | 695 |
+| Pack complet de prints Twilight | `pack-prints-twilight` (mêmes photos que le print Twilight) | 2995 |
+| Porte-clés standard | Bestiole, Nokio | 595 |
+| Blindbox LaLa | `blindbox-lala` (galerie : les modèles possibles) | 650 |
+| Blindbox Chaton mystère | `blindbox-chaton-mystere` (galerie : les modèles possibles) | 195 |
+| Headband | Headband 1 et 2 | 995 |
+| Dopamine MailClub | `dopamine-mailclub` | 1195 |
 
-| Fiche | Photos | Principale proposée |
-|---|---:|---|
-| headband-1 | 4 | IMG_6856 |
-| headband-2 | 4 | IMG_6857 |
-| mail-club | 9 | Design sans titre (1).png |
-| porte-cles-bestiole | 4 | IMG_5826 |
-| porte-cles-lala | 10 | IMG_6734 |
-| porte-cles-nokio | 5 | IMG_6772 |
-| print-chat-roi-1 | 2 | IMG_6831 |
-| print-chat-roi-2 | 1 | IMG_6830 |
-| print-chat-roi-3 | 1 | IMG_6828 |
-| print-doggo-1 | 2 | IMG_6732 |
-| print-doggo-2 | 2 | IMG_6730 |
-| print-gros-dodo | 2 | IMG_6728 |
-| print-grozyeux-1 | 2 | IMG_6791 |
-| print-grozyeux-2 | 2 | IMG_6789 |
-| print-twilight | 12 | IMG_6793 |
-| sticker-pack-bookish | 6 | IMG_6783 |
-| sticker-pack-coquette | 6 | IMG_5827 |
-| sticker-pack-doggo | 7 | IMG_6833 |
-| sticker-pack-notendo | 8 | IMG_6839 |
-| sticker-pack-papillons | 7 | IMG_6820 |
-| sticker-pack-poiscailles | 8 | IMG_6847 |
-| sticker-pack-twilight | 6 | IMG_6803 |
-| sticker-pack-witchy | 6 | IMG_6777 |
-| sticker-chaton-mystere | 9 | IMG_6809 |
-| sticker-doudou-lapin | 6 | IMG_6762 |
-| sticker-fee | 2 | IMG_6818 |
-| sticker-milk | 3 | IMG_5828 |
-| sticker-nokio | 3 | IMG_6753 |
-| sticker-telephone-a-clapet | 6 | IMG_6756 |
+## 2. Photos principales
 
-## 2. Regroupements ambigus
+`galeries.json` n'a pas été trouvé à côté du dossier `PHOTOS`. La photo principale
+reste donc la **première photo par nom de fichier**. Dès que le fichier est là :
 
-1. **Variantes ou produits séparés ?** Chat Roi 1 / 2 / 3, Doggo 1 / 2,
-   Grozyeux 1 / 2, Headband 1 / 2. Aujourd'hui : une fiche par dossier.
-2. **Photos peut-être mal rangées** (numéro hors de la série du dossier) :
-   - Print Twilight contient IMG_6827 et IMG_6829, entre Chat Roi 3 (IMG_6828)
-     et Chat Roi 2 (IMG_6830) ;
+    node scripts/gallery-covers.mjs "C:\Users\JavaChrist\Desktop\DOURYA-photos-produits\galeries.json"
+
+Pour chaque galerie, le script prend l'image dont `src` vaut `cover`, retrouve son
+fichier d'origine (`source`) parmi les photos importées, la place en tête et liste
+les correspondances manquantes. Attention : relancer l'import des photos remet
+l'ordre par nom de fichier ; il faut alors relancer ce script.
+
+## 3. Décisions à prendre avec Lizzie
+
+1. **Pack complet de prints Twilight** : quels prints exactement ? Combien ? Tous les
+   visuels en photo ? Faut-il des photos propres au pack ?
+2. **Print Twilight à l'unité** : une seule fiche avec un choix de visuel (variantes),
+   ou une fiche par visuel ? Aujourd'hui : une fiche, une variante « À l'unité ».
+3. **Variantes ou fiches séparées** : Chat Roi 1 / 2 / 3, Doggo 1 / 2, Grozyeux 1 / 2,
+   Headband 1 / 2. Aujourd'hui : une fiche par dossier.
+4. **Stocks** : stock limité (quantité par fiche) ou fabriqué à la demande ? Pour les
+   blindbox, stock global ou par modèle ?
+5. **Dopamine MailClub** : formule (contenu du colis, fréquence, achat unique ou
+   abonnement), photo principale. Le dossier mélange un montage et des captures.
+6. **Blindbox** : LaLa reste-t-elle dans « Porte-clés » et Chaton mystère dans
+   « Stickers » ? Le texte « un modèle parmi ceux en photo » convient-il ?
+7. **Photos peut-être mal rangées** (numéro hors de la série du dossier) :
+   - Print Twilight contient IMG_6827 et IMG_6829, entre Chat Roi 3 (IMG_6828) et
+     Chat Roi 2 (IMG_6830) ;
    - Pack Doggo contient IMG_6855, qui suit Pack Poiscailles (IMG_6847 à 6854) ;
    - Porte-clés Bestiole (IMG_5826), Pack Coquette (IMG_5827) et Sticker Milk
-     (IMG_5828) ont chacun une photo d'une série plus ancienne : même produit ?
-3. **Thèmes communs à plusieurs rubriques** : Twilight (print et pack), Doggo
-   (prints et pack), Nokio (porte-clés et sticker). Créer des collections ?
-4. **Mail Club** : produit à vendre, ou visuel de la section Mail Club de
-   l'accueil ? Le dossier mélange un montage (« Design sans titre (1).png »),
-   des PNG qui ressemblent à des captures et un webp. Aujourd'hui : fiche sans
-   catégorie.
-5. **Stickers à l'unité et packs** : tous dans la catégorie Stickers. Faut-il
-   deux catégories ?
-6. **Headbands** : la catégorie est masquée sur le site. La montrer à la
-   publication ?
-
-## 3. À fournir pour chaque fiche avant publication
-
-- nom définitif et description ;
-- variantes (formats, tailles) avec leur **prix** ;
-- mode de stock (fabriqué à la demande, ou stock limité avec quantité) ;
-- poids et dimensions emballées (frais de port) ;
-- photo principale et ordre des photos.
+     (IMG_5828) ont chacun une photo d'une série plus ancienne.
+8. **Thèmes communs** : Twilight, Doggo, Nokio existent dans plusieurs rubriques.
+   Créer des collections ?
+9. **Catégories** : stickers à l'unité et packs dans « Stickers » ; Headbands est une
+   catégorie masquée sur le site. La montrer à la publication ?
+10. **Textes** : noms définitifs, descriptions, poids et dimensions emballées (frais
+    de port).
 
 ## 4. Point de vigilance
 
