@@ -124,8 +124,14 @@ function validateCreate(input: CreateOrderInput): string | null {
 /**
  * Creates the draft order and holds its stock in one transaction. Two
  * customers racing for the last unit: one gets it, the other gets
- * "out_of_stock". The same attempt twice returns the first order.
+ * "out_of_stock". The same attempt twice returns the first order, unless
+ * that order closed without payment (hold expired, cancelled, payment failed)
+ * and released its stock: the attempt is then stale and a new order is
+ * created for it (a retry from the same tab gets a fresh hold).
  */
+/** Closed without payment: an attempt pointing at such an order may start over. */
+const STALE_STATUSES = new Set<PaymentStatus>(["cancelled", "expired", "failed"]);
+
 export async function createOrderWithReservation(input: CreateOrderInput): Promise<CreateOrderResult> {
   const invalid = validateCreate(input);
   if (invalid) return { kind: "invalid", reason: invalid };
@@ -139,7 +145,9 @@ export async function createOrderWithReservation(input: CreateOrderInput): Promi
     const attempt = await tx.get(attemptRef);
     if (attempt.exists) {
       if (attempt.get("fingerprint") !== fingerprint) return { kind: "conflict" };
-      return { kind: "existing", orderId: attempt.get("orderId"), paymentRef: attempt.get("paymentRef") ?? undefined };
+      const previous = await tx.get(orders().doc(attempt.get("orderId") as string));
+      const stale = previous.exists && STALE_STATUSES.has(previous.get("paymentStatus")) && previous.get("stockState") === "released";
+      if (!stale) return { kind: "existing", orderId: attempt.get("orderId"), paymentRef: attempt.get("paymentRef") ?? undefined };
     }
 
     const refs = holds.map((h) => inventory().doc(h.key));
@@ -181,7 +189,8 @@ export async function createOrderWithReservation(input: CreateOrderInput): Promi
       createdAt: Timestamp.fromDate(now),
       updatedAt: Timestamp.fromDate(now),
     });
-    tx.create(attemptRef, { orderId: orderRef.id, fingerprint, createdAt: Timestamp.fromDate(now) });
+    // set, not create: a stale attempt is pointed at the new order.
+    tx.set(attemptRef, { orderId: orderRef.id, fingerprint, createdAt: Timestamp.fromDate(now) });
     addEvent(tx, orderRef, { type: "created", source: "checkout", to: "draft", amountCents: input.totalCents }, now);
     return { kind: "created", orderId: orderRef.id };
   });

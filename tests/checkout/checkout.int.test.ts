@@ -199,6 +199,31 @@ describe("placeOrder", () => {
     expect(await onlyOrderId()).toBe(id);
     expect((await getOrder(id))?.paymentStatus).toBe("awaiting_payment");
   });
+
+  it("same tab after the hold expired: the stale attempt gets a new order and a single hold", async () => {
+    const stripe = fakeStripe();
+    stripe.fail(new StripeError("invalid_request", 400));
+    expect(await placeOrder(order(), deps(stripe))).toMatchObject({ code: "payment_error" });
+    const first = await onlyOrderId();
+    expect(await stock()).toMatchObject({ reserved: 1 });
+
+    // 31 minutes later, same attempt key (sessionStorage): the sweep cancels the
+    // old draft, the attempt is stale, a new order is created and paid normally.
+    const later = new Date(T0.getTime() + 31 * 60_000);
+    const res = await placeOrder(order(), deps(stripe, { now: later }));
+    expect(res).toMatchObject({ kind: "redirect", url: "https://checkout.stripe.com/c/pay/cs_test_fake1" });
+    expect((await getOrder(first))?.paymentStatus).toBe("cancelled");
+    const all = await adminDb().collection("orders").get();
+    expect(all.size).toBe(2);
+    const second = all.docs.find((d) => d.id !== first)!;
+    expect(second.get("paymentStatus")).toBe("awaiting_payment");
+    expect(stripe.created.at(-1)?.orderId).toBe(second.id);
+    // Stock 1: the new hold fits only because the old one was released.
+    expect(await stock()).toMatchObject({ stock: 1, reserved: 1 });
+    // A double click now returns the new order, not a third one.
+    expect(await placeOrder(order(), deps(stripe, { now: later }))).toEqual(res);
+    expect((await adminDb().collection("orders").get()).size).toBe(2);
+  });
 });
 
 describe("webhook and return page", () => {
