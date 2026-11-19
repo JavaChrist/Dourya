@@ -25,6 +25,10 @@ export const RATE_LIMITS = {
   "email:reset:ip": { limit: 5, windowMs: 15 * 60_000 },
   "email:reset:address": { limit: 3, windowMs: 60 * 60_000 },
   "email:unsubscribe": { limit: 30, windowMs: 15 * 60_000 },
+  // Checkout (Lot 4.3): order creation per IP, return page reads, Stripe webhook calls.
+  "checkout:place": { limit: 10, windowMs: 15 * 60_000 },
+  "checkout:return": { limit: 60, windowMs: 15 * 60_000 },
+  "webhook:stripe": { limit: 300, windowMs: 60_000 },
 } as const satisfies Record<string, RateLimitRule>;
 
 export type RateLimitAction = keyof typeof RATE_LIMITS;

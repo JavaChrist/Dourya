@@ -31,7 +31,7 @@ export const commerceConfig = {
   maxQuantityPerLine: 10,
   /** Max number of distinct lines accepted by the server. */
   maxCartLines: 50,
-  /** Checkout opens in Lot 4.3 (Mollie). Demo products are never purchasable. */
+  /** Checkout opens in Lot 4.3 (Stripe). Demo products are never purchasable. */
   checkoutEnabled: false,
   /** Shipping is computed in Lot 4: no estimate is shown before that. */
   shippingEstimateEnabled: false,
@@ -41,7 +41,7 @@ export const commerceConfig = {
    */
   guestCheckoutEnabled: true,
   /**
-   * How long stock is held while a Mollie payment is awaited. Technical value
+   * How long stock is held while a Stripe payment is awaited. Technical value
    * to be confirmed by the merchant; the hold is released when the payment
    * fails, expires or is cancelled.
    */
@@ -49,13 +49,25 @@ export const commerceConfig = {
 } as const;
 
 /**
- * Mollie payment methods offered at checkout. Card only by default: Apple Pay
- * and Google Pay stay off until they are activated on the Mollie account.
- * Amounts are always in EUR cents, recomputed on the server.
+ * Stripe Checkout payment methods (payment_method_types). Card only by
+ * default. Note: Apple Pay and Google Pay are card wallets at Stripe; they
+ * can still show on the hosted page if they are enabled in the Stripe
+ * dashboard (Settings > Payment methods). Amounts are always in EUR cents,
+ * recomputed on the server.
  */
 export const paymentConfig = {
-  provider: "mollie",
-  methods: { creditcard: true, applepay: false, googlepay: false },
+  provider: "stripe",
+  methods: { card: true },
+  /**
+   * A live Stripe key (sk_live_...) is refused while this is false: only test
+   * payments can be made until the merchant validates the go-live.
+   */
+  allowLive: false,
+  /**
+   * Lets the demo products go through checkout, with a Stripe TEST key only,
+   * to run the test scenarios before real products exist. Never with a live key.
+   */
+  allowDemoCheckoutInTestMode: false,
 } as const;
 
 export const accountConfig = {

@@ -9,7 +9,7 @@ const PAYMENT_MOVES: Record<PaymentStatus, readonly PaymentStatus[]> = {
   awaiting_payment: ["paid", "cancelled", "expired", "failed"],
   paid: ["partially_refunded", "refunded"],
   partially_refunded: ["partially_refunded", "refunded"],
-  // Mollie can still report "paid" after the stock hold ran out locally:
+  // Stripe can still report "paid" after the stock hold ran out locally:
   // the money is taken, so the order is accepted and flagged for a stock check.
   cancelled: ["paid"],
   expired: ["paid"],
@@ -88,7 +88,7 @@ export function refundStatus(totalCents: number, refundedCents: number): Payment
   return refundedCents >= totalCents ? "refunded" : "partially_refunded";
 }
 
-/** Checks an admin refund request before anything is sent to Mollie. */
+/** Checks an admin refund request before anything is sent to Stripe. */
 export function validateRefund(
   order: { paymentStatus: PaymentStatus; totalCents: number; refundedCents: number },
   amountCents: number,

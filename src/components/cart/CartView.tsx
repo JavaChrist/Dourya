@@ -120,14 +120,24 @@ export function CartView() {
           </p>
         )}
 
-        <button
-          type="button"
-          disabled={!cart.checkoutAllowed}
-          className="mt-4 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-button px-6 font-display text-lg font-semibold text-button-ink shadow-[0_3px_0_rgba(43,18,32,0.25)] disabled:cursor-not-allowed disabled:bg-ink/10 disabled:text-ink/60 disabled:shadow-none"
-        >
-          <Lock aria-hidden className="size-5" />
-          Passer au paiement
-        </button>
+        {cart.checkoutAllowed ? (
+          <Link
+            href="/commande"
+            className="mt-4 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-button px-6 font-display text-lg font-semibold text-button-ink shadow-[0_3px_0_rgba(43,18,32,0.25)] hover:brightness-95"
+          >
+            <Lock aria-hidden className="size-5" />
+            Passer au paiement
+          </Link>
+        ) : (
+          <button
+            type="button"
+            disabled
+            className="mt-4 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-button px-6 font-display text-lg font-semibold text-button-ink shadow-[0_3px_0_rgba(43,18,32,0.25)] disabled:cursor-not-allowed disabled:bg-ink/10 disabled:text-ink/60 disabled:shadow-none"
+          >
+            <Lock aria-hidden className="size-5" />
+            Passer au paiement
+          </button>
+        )}
         {!cart.checkoutAllowed && <p className="mt-2 text-center text-xs text-ink-muted">Le paiement en ligne ouvrira prochainement.</p>}
       </aside>
     </div>

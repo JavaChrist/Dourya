@@ -6,7 +6,7 @@ import type { ShippingAddress } from "@/lib/commerce-types";
 import { adminDb } from "@/lib/firebase/admin-db";
 import { validateShippingRate } from "@/lib/shipping/quote";
 import type { ShippingRate, ShippingSettings } from "@/lib/shipping/types";
-import { interpretMolliePayment, type MolliePaymentView } from "./mollie-status";
+import { interpretPayment, type PaymentView } from "./payment-status";
 import { initialFulfilment, nextPaymentStatus } from "./transitions";
 import type { EventSource, OrderEvent, OrderLineSnapshot, OrderRecord, PaymentStatus, ShippingChoice, StockHold } from "./types";
 
@@ -43,7 +43,7 @@ function toOrderRecord(id: string, d: DocumentData): OrderRecord {
     shippingAddress: d.shippingAddress,
     paymentStatus: d.paymentStatus,
     fulfilmentStatus: d.fulfilmentStatus ?? null,
-    molliePaymentId: d.molliePaymentId ?? undefined,
+    paymentRef: d.paymentRef ?? undefined,
     refundedCents: d.refundedCents ?? 0,
     tracking: d.tracking ?? undefined,
     stockHolds: d.stockHolds ?? [],
@@ -102,7 +102,7 @@ export type CreateOrderInput = {
 export type CreateOrderResult =
   | { kind: "created"; orderId: string }
   /** Same attempt again (double click, reload): the first order is returned. */
-  | { kind: "existing"; orderId: string; molliePaymentId?: string }
+  | { kind: "existing"; orderId: string; paymentRef?: string }
   /** The attempt key was used for another content. */
   | { kind: "conflict" }
   | { kind: "out_of_stock"; keys: string[] }
@@ -139,7 +139,7 @@ export async function createOrderWithReservation(input: CreateOrderInput): Promi
     const attempt = await tx.get(attemptRef);
     if (attempt.exists) {
       if (attempt.get("fingerprint") !== fingerprint) return { kind: "conflict" };
-      return { kind: "existing", orderId: attempt.get("orderId"), molliePaymentId: attempt.get("molliePaymentId") ?? undefined };
+      return { kind: "existing", orderId: attempt.get("orderId"), paymentRef: attempt.get("paymentRef") ?? undefined };
     }
 
     const refs = holds.map((h) => inventory().doc(h.key));
@@ -189,20 +189,20 @@ export async function createOrderWithReservation(input: CreateOrderInput): Promi
 
 export type AttachResult = { kind: "attached" } | { kind: "unchanged" } | { kind: "not_found" } | { kind: "refused"; reason: string };
 
-/** Links the Mollie payment to the draft order: draft -> awaiting_payment. */
-export async function attachPayment(orderId: string, molliePaymentId: string, now = new Date()): Promise<AttachResult> {
-  if (!DOC_ID.test(orderId) || !DOC_ID.test(molliePaymentId)) return { kind: "not_found" };
+/** Links the provider payment (Stripe Checkout Session) to the draft order: draft -> awaiting_payment. */
+export async function attachPayment(orderId: string, paymentRef: string, now = new Date()): Promise<AttachResult> {
+  if (!DOC_ID.test(orderId) || !DOC_ID.test(paymentRef)) return { kind: "not_found" };
   return db().runTransaction(async (tx): Promise<AttachResult> => {
     const ref = orders().doc(orderId);
     const snap = await tx.get(ref);
     if (!snap.exists) return { kind: "not_found" };
-    const current = snap.get("molliePaymentId") as string | undefined;
-    if (current) return current === molliePaymentId ? { kind: "unchanged" } : { kind: "refused", reason: "payment_already_attached" };
+    const current = snap.get("paymentRef") as string | undefined;
+    if (current) return current === paymentRef ? { kind: "unchanged" } : { kind: "refused", reason: "payment_already_attached" };
     const step = nextPaymentStatus(snap.get("paymentStatus"), "awaiting_payment");
     if (!step.ok || !step.changed) return { kind: "refused", reason: step.ok ? "not_draft" : step.reason };
-    tx.update(ref, { molliePaymentId, paymentStatus: "awaiting_payment", updatedAt: Timestamp.fromDate(now) });
-    tx.update(attempts().doc(snap.get("attemptKey")), { molliePaymentId });
-    addEvent(tx, ref, { type: "payment_status", source: "checkout", from: "draft", to: "awaiting_payment", mollieId: molliePaymentId }, now);
+    tx.update(ref, { paymentRef, paymentStatus: "awaiting_payment", updatedAt: Timestamp.fromDate(now) });
+    tx.update(attempts().doc(snap.get("attemptKey")), { paymentRef });
+    addEvent(tx, ref, { type: "payment_status", source: "checkout", from: "draft", to: "awaiting_payment", providerRef: paymentRef }, now);
     return { kind: "attached" };
   });
 }
@@ -217,11 +217,11 @@ const PRE_PAID: readonly PaymentStatus[] = ["draft", "awaiting_payment", "cancel
 const REFUND_STATES: readonly PaymentStatus[] = ["partially_refunded", "refunded"];
 
 /**
- * Applies a payment re-read at Mollie (never the webhook body). Stock moves
+ * Applies a payment re-read at the payment provider (never the webhook body). Stock moves
  * with the payment: sold when paid, given back on failure, expiry or
  * cancellation. A repeated notification writes nothing.
  */
-export async function applyPaymentState(orderId: string, payment: MolliePaymentView, source: EventSource, now = new Date()): Promise<ApplyResult> {
+export async function applyPaymentState(orderId: string, payment: PaymentView, source: EventSource, now = new Date()): Promise<ApplyResult> {
   if (!DOC_ID.test(orderId)) return { kind: "not_found" };
   return db().runTransaction(async (tx): Promise<ApplyResult> => {
     const ref = orders().doc(orderId);
@@ -233,13 +233,13 @@ export async function applyPaymentState(orderId: string, payment: MolliePaymentV
       // Flagged once: a repeated webhook does not pile up the same anomaly.
       if (order.needsReview !== code) {
         tx.update(ref, { needsReview: code, updatedAt: Timestamp.fromDate(now) });
-        addEvent(tx, ref, { type: "anomaly", source, code, mollieId: payment.id }, now);
+        addEvent(tx, ref, { type: "anomaly", source, code, providerRef: payment.id }, now);
       }
       return { kind: "anomaly", code };
     };
 
-    if (order.molliePaymentId !== payment.id) return flag("payment_id_mismatch");
-    const read = interpretMolliePayment(payment, order);
+    if (order.paymentRef !== payment.id) return flag("payment_id_mismatch");
+    const read = interpretPayment(payment, order);
     if (!read.ok) return flag(read.anomaly);
 
     // A missed "paid" notification: go through paid before the refund state.
@@ -292,10 +292,10 @@ export async function applyPaymentState(orderId: string, payment: MolliePaymentV
     tx.update(ref, update);
 
     if (status !== order.paymentStatus) {
-      addEvent(tx, ref, { type: "payment_status", source, from: order.paymentStatus, to: status, mollieId: payment.id, code: needsReview }, now);
+      addEvent(tx, ref, { type: "payment_status", source, from: order.paymentStatus, to: status, providerRef: payment.id, code: needsReview }, now);
     }
     if (read.refundedCents > order.refundedCents) {
-      addEvent(tx, ref, { type: "refund", source, amountCents: read.refundedCents - order.refundedCents, mollieId: payment.id }, now);
+      addEvent(tx, ref, { type: "refund", source, amountCents: read.refundedCents - order.refundedCents, providerRef: payment.id }, now);
     }
     return { kind: "updated", from: order.paymentStatus, to: status, needsReview };
   });
@@ -303,11 +303,11 @@ export async function applyPaymentState(orderId: string, payment: MolliePaymentV
 
 /**
  * Safety net for holds whose payment never notified. A draft without payment
- * is cancelled; an awaited payment is re-read at Mollie through `fetchPayment`
- * and applied as such (still open at Mollie = still held, no oversell).
+ * is cancelled; an awaited payment is re-read at Stripe through `fetchPayment`
+ * and applied as such (still open at Stripe = still held, no oversell).
  */
 export async function releaseExpiredReservations(
-  fetchPayment: (molliePaymentId: string) => Promise<MolliePaymentView>,
+  fetchPayment: (paymentRef: string) => Promise<PaymentView>,
   now = new Date(),
   limit = 50,
 ): Promise<{ checked: number; changed: number }> {
@@ -319,9 +319,9 @@ export async function releaseExpiredReservations(
     .get();
   let changed = 0;
   for (const doc of snap.docs) {
-    const molliePaymentId = doc.get("molliePaymentId") as string | undefined;
-    if (molliePaymentId) {
-      const result = await applyPaymentState(doc.id, await fetchPayment(molliePaymentId), "system", now);
+    const paymentRef = doc.get("paymentRef") as string | undefined;
+    if (paymentRef) {
+      const result = await applyPaymentState(doc.id, await fetchPayment(paymentRef), "system", now);
       if (result.kind === "updated") changed++;
     } else if (await cancelDraft(doc.id, now)) {
       changed++;
@@ -334,7 +334,7 @@ async function cancelDraft(orderId: string, now: Date): Promise<boolean> {
   return db().runTransaction(async (tx) => {
     const ref = orders().doc(orderId);
     const snap = await tx.get(ref);
-    if (!snap.exists || snap.get("paymentStatus") !== "draft" || snap.get("molliePaymentId")) return false;
+    if (!snap.exists || snap.get("paymentStatus") !== "draft" || snap.get("paymentRef")) return false;
     const holds = (snap.get("stockHolds") as StockHold[]) ?? [];
     const held = snap.get("stockState") === "held";
     const holdRefs = holds.map((h) => inventory().doc(h.key));

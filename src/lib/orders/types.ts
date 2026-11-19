@@ -4,16 +4,16 @@ import type { StockMode } from "@/lib/types";
 import type { EnvelopeType, ShippingService } from "@/lib/shipping/types";
 
 /**
- * Lot 4 order model (Mollie). Payment and fulfilment are two separate
+ * Lot 4 order model (Stripe Checkout). Payment and fulfilment are two separate
  * state machines: a paid order can be "to produce", and a refunded one can
  * still be "returned".
  */
 
-/** Payment side. Only the server changes it, from a payment re-read at Mollie. */
+/** Payment side. Only the server changes it, from a payment re-read at Stripe. */
 export type PaymentStatus =
   /** Built from the cart, no payment created yet. */
   | "draft"
-  /** Payment created at Mollie, the customer has not finished (open / pending / authorized). */
+  /** Checkout Session created at Stripe, the customer has not finished (open / pending). */
   | "awaiting_payment"
   | "paid"
   | "cancelled"
@@ -33,7 +33,7 @@ export type FulfilmentStatus =
   | "returned";
 
 /** Who caused a change: every event of the journal says it. */
-export type EventSource = "checkout" | "mollie_webhook" | "return_page" | "admin" | "system";
+export type EventSource = "checkout" | "stripe_webhook" | "return_page" | "admin" | "system";
 
 /** Snapshot taken at checkout: later catalogue changes never alter a placed order. */
 export type OrderLineSnapshot = {
@@ -92,7 +92,7 @@ export type OrderRecord = {
   shippingAddress: ShippingAddress;
   paymentStatus: PaymentStatus;
   fulfilmentStatus: FulfilmentStatus | null;
-  molliePaymentId?: string;
+  paymentRef?: string;
   refundedCents: number;
   tracking?: TrackingInfo;
   stockHolds: StockHold[];
@@ -110,8 +110,8 @@ export type OrderEvent = {
   source: EventSource;
   from?: string | null;
   to?: string | null;
-  /** Mollie payment or refund id, when the event comes from Mollie. */
-  mollieId?: string;
+  /** Provider reference (Stripe Checkout Session id), when the event comes from the payment. */
+  providerRef?: string;
   amountCents?: number;
   actorUid?: string;
   /** Short known code, never a raw provider message. */
