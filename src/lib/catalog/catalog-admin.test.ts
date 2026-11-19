@@ -121,7 +121,8 @@ describe("merged catalogue", () => {
       ready({ id: "p-brouillon", slug: "brouillon", status: "draft" }),
       ready({ id: "p-archive", slug: "archive", status: "archived" }),
       ready({ id: "p-sans-photo", slug: "sans-photo", images: [] }),
-      ready({ id: "real-headband-1", slug: "headband-1" }), // fixture id: never replaced
+      ready({ id: "real-headband-1", slug: "autre-adresse" }), // code product: its slug cannot change
+      ready({ id: "demo-sticker", slug: fixtures.products.find((p) => p.id === "demo-sticker")!.slug }), // demo: never replaced
       ready({ id: "p-copie", slug: fixtures.products[0].slug }), // slug taken
     ];
     const merged = addPublishedProducts(fixtures.products, candidates, cats);
@@ -140,6 +141,29 @@ describe("merged catalogue", () => {
     expect(isListedPhoto(merged, "p-nouveau", "abcdef1234.webp")).toBe(true);
     expect(isListedPhoto(merged, "p-nouveau", "autre12345.webp")).toBe(false);
     expect(isListedPhoto(merged, fixtures.products[0].id, "abcdef1234.webp")).toBe(false);
+  });
+
+  it("lets the admin take over a real product of the code (same id and slug), never a demo", () => {
+    const cats = new Set(fixtures.categories.filter((c) => c.visible).map((c) => c.slug));
+    const fixture = fixtures.products.find((p) => p.id === "real-headband-1")!;
+    const position = fixtures.products.indexOf(fixture);
+    const published = addPublishedProducts(fixtures.products, [ready({ id: fixture.id, slug: fixture.slug })], cats);
+    expect(published).toHaveLength(fixtures.products.length);
+    const taken = published[position];
+    expect(taken.id).toBe(fixture.id);
+    expect(taken.status).toBe("published");
+    expect(taken.isDemo).toBe(false);
+    expect(taken.images[0].src).toBe("/catalogue/photos/real-headband-1/abcdef1234.webp");
+    expect(isListed(taken, cats)).toBe(true);
+    expect(isListedPhoto(published, fixture.id, "abcdef1234.webp")).toBe(true);
+    // A draft, or a published record that is no longer ready, stays out of the shop.
+    for (const over of [{ status: "draft" as const }, { description: " " }]) {
+      const p = addPublishedProducts(fixtures.products, [ready({ id: fixture.id, slug: fixture.slug, ...over })], cats)[position];
+      expect(p.status).toBe("draft");
+      expect(isListed(p, cats)).toBe(false);
+    }
+    const preview = previewProducts(fixtures.products, [ready({ id: fixture.id, slug: fixture.slug })], cats);
+    expect(preview.find((p) => p.id === fixture.id)?.status).toBe("published");
   });
 
   it("uses the same rules for the production shop and the preview", () => {

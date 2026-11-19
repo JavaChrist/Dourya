@@ -12,7 +12,11 @@ import { SearchBox, type SearchEntry } from "./SearchBox";
 const iconButton =
   "flex size-11 items-center justify-center rounded-full text-white transition hover:bg-white/15";
 
-/** `nav`: desktop header (limited number of rubriques); `menuNav`: mobile menu (all of them). */
+/**
+ * `nav`: desktop header (limited number of rubriques); `menuNav`: the menu
+ * (all of them). The menu button shows on desktop too when some rubriques do
+ * not fit in the header.
+ */
 type HeaderProps = { nav: NavItem[]; menuNav: NavItem[]; searchEntries: SearchEntry[] };
 
 /**
@@ -37,6 +41,7 @@ function HeaderView({ nav, menuNav, searchEntries, pathname }: HeaderProps & { p
   const menuRef = useRef<HTMLDialogElement>(null);
 
   const closeMenu = () => menuRef.current?.close();
+  const moreInMenu = menuNav.length > nav.length;
 
   useEffect(() => {
     // Close the mobile UI after a navigation.
@@ -48,11 +53,11 @@ function HeaderView({ nav, menuNav, searchEntries, pathname }: HeaderProps & { p
   return (
     <header className="sticky top-0 z-40 bg-primary shadow-[0_2px_0_rgba(43,18,32,0.12)]">
       <div className="mx-auto flex h-16 max-w-6xl items-center gap-2 px-2 sm:px-4 lg:h-20 lg:gap-6 lg:px-6">
-        {/* Mobile: menu button */}
+        {/* Menu button: mobile, and desktop when the header cannot show every rubrique */}
         <button
           type="button"
-          className={`${iconButton} lg:hidden`}
-          aria-label="Ouvrir le menu"
+          className={`${iconButton} ${moreInMenu ? "" : "lg:hidden"}`}
+          aria-label={moreInMenu ? "Ouvrir le menu (toutes les rubriques)" : "Ouvrir le menu"}
           aria-haspopup="dialog"
           onClick={() => menuRef.current?.showModal()}
         >
@@ -128,7 +133,7 @@ function HeaderView({ nav, menuNav, searchEntries, pathname }: HeaderProps & { p
             <X aria-hidden className="size-6" />
           </button>
         </div>
-        <nav aria-label="Navigation mobile" className="flex-1 overflow-y-auto px-2">
+        <nav aria-label="Menu des rubriques" className="flex-1 overflow-y-auto px-2">
           <ul className="space-y-1">
             {menuNav.map((item) => (
               <li key={item.href}>

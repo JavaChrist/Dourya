@@ -11,7 +11,7 @@ import { AdminHeader, CatalogClosed, DraftOnlyNotice } from "@/components/admin/
 import { Notice } from "@/components/auth/FormParts";
 import { requireAdmin } from "@/lib/auth/dal";
 import { PRODUCT_ID_PATTERN, catalogAdminState } from "@/lib/catalog/admin-gate";
-import { adminCatalog, isFixtureProduct } from "@/lib/catalog/admin-repository";
+import { adminCatalog } from "@/lib/catalog/admin-repository";
 import { READINESS_LABEL, publishReadiness } from "@/lib/catalog/publish";
 import { MAX_IMAGES } from "@/lib/catalog/stored-schema";
 
@@ -34,8 +34,6 @@ async function Content({ params, searchParams }: { params: Promise<{ id: string 
     );
   const created = (await searchParams).cree === "1";
   const missing = publishReadiness(product, visibleInShop).map((i) => READINESS_LABEL[i]);
-  // Fixture products (src/data) stay as the code defines them: the shop never lets a stored record replace them.
-  const blocked = isFixtureProduct(product.id) ? "Fiche du catalogue d'origine (définie dans le code) : elle ne se publie pas depuis l'administration. Créez une nouvelle fiche pour la mettre en vente." : undefined;
   return (
     <div className="mt-8 space-y-6">
       {created && <Notice tone="success">Fiche créée en brouillon. Ajoutez ses photos ci-dessous.</Notice>}
@@ -51,7 +49,7 @@ async function Content({ params, searchParams }: { params: Promise<{ id: string 
         )}
       </div>
       <Card title="Publication">
-        <PublishPanel productId={product.id} slug={product.slug} status={product.status} missing={missing} blocked={blocked} />
+        <PublishPanel productId={product.id} slug={product.slug} status={product.status} missing={missing} />
       </Card>
       <Card title="Photos">
         <PhotoManager productId={product.id} productName={product.name} images={product.images} max={MAX_IMAGES} />

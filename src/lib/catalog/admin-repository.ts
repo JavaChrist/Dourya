@@ -53,8 +53,6 @@ export async function adminCatalog(): Promise<AdminCatalog> {
 
 const demoIds = new Set(fixtures.products.filter((p) => p.isDemo).map((p) => p.id));
 export const isDemoProduct = (id: string) => demoIds.has(id);
-/** Product of the code catalogue (src/data): never published from the admin (merge.ts never lets a stored copy replace it in the shop). */
-export const isFixtureProduct = (id: string) => fixtures.products.some((p) => p.id === id);
 
 // ---- Categories -------------------------------------------------------------
 
@@ -108,7 +106,7 @@ export async function saveProduct(input: ProductInput): Promise<{ product: Produ
     createdAt: existing?.createdAt || now,
     updatedAt: now,
   };
-  const unpublished = product.status === "published" && (isFixtureProduct(id) || !isReadyToPublish(product, visibleInShop));
+  const unpublished = product.status === "published" && !isReadyToPublish(product, visibleInShop);
   if (unpublished) product.status = "draft";
   // toDoc() writes "published" as a draft (import rule): the status checked above is written explicitly.
   await adminDb().collection(PRODUCTS_COLLECTION).doc(id).set({ ...toDoc(product), status: product.status });
@@ -117,14 +115,13 @@ export async function saveProduct(input: ProductInput): Promise<{ product: Produ
 
 /**
  * « Publier », « Repasser en brouillon », « Archiver ». Publishing re-checks
- * the readiness on the stored record, inside the transaction; a demo product
- * or a product of the code catalogue is never published from here.
+ * the readiness on the stored record, inside the transaction (a product of
+ * the code catalogue is copied there on its first change, see merge.ts); a
+ * demo product is never changed from here.
  */
 export async function setProductStatus(productId: string, status: PublishStatus): Promise<void> {
   assertOpen();
   if (isDemoProduct(productId)) throw new CatalogRefusal("Les produits de démonstration ne se modifient pas ici.");
-  if (status === "published" && isFixtureProduct(productId))
-    throw new CatalogRefusal("Cette fiche fait partie du catalogue du code du site : elle ne se publie pas depuis l'administration.");
   const { products, visibleInShop } = await adminCatalog();
   const db = adminDb();
   const ref = db.collection(PRODUCTS_COLLECTION).doc(productId);

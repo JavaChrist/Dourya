@@ -58,37 +58,50 @@ export function mergeProducts(fixtures: Product[], stored: Product[]): Product[]
   return [...byId.values()];
 }
 
+/** A stored record as the shop sees it: public when published and ready, otherwise a draft (never listed). */
+const asShopProduct = (p: Product, visibleCategorySlugs: ReadonlySet<string>): Product =>
+  p.status === "published" && isReadyToPublish(p, visibleCategorySlugs) ? toPublicProduct(p) : { ...p, isDemo: false, status: "draft" };
+
 /**
- * Published stored products added to the shop of dourya.fr. Only NEW products:
- * a stored record with the id or the slug of a fixture (demo or not) is
- * ignored, so the code catalogue and the demo sticker stay as they are. The
- * readiness is checked again here: a product that is no longer ready is left
- * out. Drafts and archived records never reach the shop.
+ * Products of the shop of dourya.fr.
+ * - A stored record with the id of a code product that is not a demo (the
+ *   real creations of src/data/real-products.ts) takes its place: the fiche is
+ *   then managed from the admin (photos, price, stock, « Publier »). It must
+ *   keep the same slug (the admin never changes it).
+ * - A NEW stored product is added when it is published and ready.
+ * - Demo products (Stripe tests) are never replaced, and no stored record may
+ *   take the slug of another product.
+ * The readiness is checked again here: a product that is no longer ready
+ * leaves the shop. Drafts and archived records never reach it.
  */
 export function addPublishedProducts(fixtures: Product[], stored: Product[], visibleCategorySlugs: ReadonlySet<string>): Product[] {
-  const ids = new Set(fixtures.map((p) => p.id));
+  const byId = new Map(fixtures.map((p) => [p.id, p]));
+  const replaced = new Map<string, Product>();
   const slugs = new Set(fixtures.map((p) => p.slug));
   const added: Product[] = [];
   for (const p of stored) {
-    if (p.status !== "published" || ids.has(p.id) || slugs.has(p.slug) || !isReadyToPublish(p, visibleCategorySlugs)) continue;
-    ids.add(p.id);
+    const fixture = byId.get(p.id);
+    if (fixture) {
+      if (!fixture.isDemo && fixture.slug === p.slug) replaced.set(p.id, asShopProduct(p, visibleCategorySlugs));
+      continue;
+    }
+    if (p.status !== "published" || slugs.has(p.slug) || !isReadyToPublish(p, visibleCategorySlugs)) continue;
     slugs.add(p.slug);
     added.push(toPublicProduct(p));
   }
-  return [...fixtures, ...added];
+  return [...fixtures.map((p) => replaced.get(p.id) ?? p), ...added];
 }
 
 /**
  * Products of the stripe-test preview: the admin merge, where a stored product
- * is "published" only by the same rules as on dourya.fr (new id, ready);
- * otherwise it is shown as a draft (preview only, never in the cart).
+ * is "published" only by the same rules as on dourya.fr (ready); otherwise it
+ * is shown as a draft (preview only, never in the cart).
  */
 export function previewProducts(fixtures: Product[], stored: Product[], visibleCategorySlugs: ReadonlySet<string>): Product[] {
-  const fixtureIds = new Set(fixtures.map((p) => p.id));
   const storedIds = new Set(stored.map((p) => p.id));
   return mergeProducts(fixtures, stored).map((p) => {
     if (p.isDemo || !storedIds.has(p.id) || p.status !== "published") return p;
-    return !fixtureIds.has(p.id) && isReadyToPublish(p, visibleCategorySlugs) ? toPublicProduct(p) : { ...p, status: "draft" };
+    return asShopProduct(p, visibleCategorySlugs);
   });
 }
 

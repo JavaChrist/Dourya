@@ -11,16 +11,19 @@ import { useConfirm } from "@/components/ui/ConfirmDialog";
 import { STATUS_LABEL } from "./shared";
 
 const idle: FormState = { status: "idle" };
+// The shared button shows a « loading » cursor when disabled: here, disabled while
+// something is missing means « not allowed », the wait cursor is kept for the submit.
+const publishButton = primaryButton.replace("disabled:cursor-wait", "").trim();
 
 /**
  * Publication of a product. `missing` comes from publishReadiness() on the
  * server (and is checked again by the action): « Publier » stays disabled
  * while anything is missing.
  */
-export function PublishPanel({ productId, slug, status, missing, blocked }: { productId: string; slug: string; status: PublishStatus; missing: string[]; blocked?: string }) {
+export function PublishPanel({ productId, slug, status, missing }: { productId: string; slug: string; status: PublishStatus; missing: string[] }) {
   const [state, action, pending] = useActionState(setProductStatusAction, idle);
   const [ask, confirmDialog] = useConfirm();
-  const ready = missing.length === 0 && !blocked;
+  const ready = missing.length === 0;
   // The click is stopped, then the same button submits the form once the modal says yes.
   const confirmThen = (options: Parameters<typeof ask>[0]) => (e: MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
@@ -39,12 +42,7 @@ export function PublishPanel({ productId, slug, status, missing, blocked }: { pr
         {status === "published" && " · visible dans la boutique, la vente reste fermée"}
       </p>
 
-      {blocked ? (
-        <p className="flex items-start gap-2 text-ink-muted">
-          <CircleAlert aria-hidden className="mt-0.5 size-5 shrink-0" />
-          {blocked}
-        </p>
-      ) : ready ? (
+      {ready ? (
         <p className="flex items-center gap-2 font-semibold text-ink">
           <CheckCircle2 aria-hidden className="size-5 text-pink-strong" />
           Prêt à publier
@@ -71,7 +69,8 @@ export function PublishPanel({ productId, slug, status, missing, blocked }: { pr
             value="published"
             disabled={!ready || pending}
             aria-disabled={!ready || pending}
-            className={`${primaryButton} disabled:cursor-not-allowed`}
+            title={!ready ? "Complétez d'abord les points listés ci-dessus." : undefined}
+            className={`${publishButton} ${pending ? "disabled:cursor-wait" : "disabled:cursor-not-allowed"}`}
             onClick={confirmThen({
               title: "Publier cette fiche ?",
               message: "Elle apparaîtra dans la boutique publique et dans le sitemap, avec ses photos. La vente reste fermée.",
@@ -113,6 +112,7 @@ export function PublishPanel({ productId, slug, status, missing, blocked }: { pr
           </Link>
         )}
       </div>
+      {!ready && status !== "published" && <p className="text-sm text-ink-muted">« Publier » s&apos;active dès que les points ci-dessus sont réglés (enregistrez la fiche après chaque changement).</p>}
     </form>
   );
 }
