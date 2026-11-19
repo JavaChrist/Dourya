@@ -7,7 +7,7 @@ import { useEffect, useId, useState } from "react";
 import { formatPrice } from "@/lib/format";
 import { PERSONALISATION_PATTERN, normalizePersonalisation } from "@/lib/cart/items";
 import { useCart } from "@/components/cart/CartProvider";
-import { isDraftPhotoUrl } from "@/lib/catalog/draft-photo-url";
+import { isUploadedPhotoUrl } from "@/lib/catalog/draft-photo-url";
 import { useModelSelection } from "./ModelSelection";
 
 export type VariantOption = {
@@ -140,7 +140,7 @@ export function AddToCart({
                   />
                   {v.imageSrc && (
                     <span className={`relative block size-14 shrink-0 overflow-hidden rounded-md ${v.soldOut ? "opacity-50 grayscale" : ""}`}>
-                      <Image src={v.imageSrc} alt="" fill sizes="56px" unoptimized={isDraftPhotoUrl(v.imageSrc)} className="object-cover" />
+                      <Image src={v.imageSrc} alt="" fill sizes="56px" unoptimized={isUploadedPhotoUrl(v.imageSrc)} className="object-cover" />
                     </span>
                   )}
                   <span>

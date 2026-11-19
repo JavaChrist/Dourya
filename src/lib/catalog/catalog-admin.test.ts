@@ -6,7 +6,8 @@ import { commerceConfig } from "@/config/commerce";
 import { catalogAdminState, catalogBucket, catalogCategoriesMerged, catalogStoreMerged, draftPhotoPath, isDraftPhotoUrl, PHOTO_FILE_PATTERN, PRODUCT_ID_PATTERN } from "./admin-gate";
 import { fixtures } from "./fixtures";
 import { planImport, PUBLIC_PHOTO_PREFIX, toStoredProductDoc } from "./import-plan";
-import { addStoredCategories, mergeCategories, mergeProducts } from "./merge";
+import { addPublishedProducts, addStoredCategories, mergeCategories, mergeProducts, previewProducts, shopCatalog } from "./merge";
+import { isListedPhoto, publishReadiness, toPublicProduct } from "./publish";
 import { linkVariantImages, parseEuros, parseStoredProduct, slugify, sniffImage, validateCategoryForm, validateProductForm } from "./stored-schema";
 import { isListed } from "./visibility";
 
@@ -61,6 +62,45 @@ describe("catalogue admin gate", () => {
 });
 
 const stored = (over: Partial<Product>): Product => ({ ...realProducts[0], id: "p-nouveau", slug: "nouveau", name: "Nouveau", ...over });
+const PHOTO = "/admin/catalogue/photos/p-nouveau/abcdef1234.webp";
+/** A stored product that passes publishReadiness() in a visible fixture rubrique. */
+const ready = (over: Partial<Product>): Product => {
+  const visible = fixtures.categories.find((c) => c.visible)!.slug;
+  const id = over.id ?? "p-nouveau";
+  const src = PHOTO.replace("p-nouveau", id);
+  return stored({
+    status: "published",
+    isDemo: false,
+    description: "Une description.",
+    categorySlugs: [visible],
+    images: [{ src, alt: "Nouveau", width: 800, height: 800, storagePath: `catalog-drafts/${id}/abcdef1234.webp` }],
+    variants: [{ ...realProducts[0].variants[0], priceCents: 500, stockMode: "stocked", stock: 2, active: true, imageSrc: src }],
+    ...over,
+  });
+};
+
+describe("pre-publication check", () => {
+  const cats = new Set([fixtures.categories.find((c) => c.visible)!.slug]);
+  it("is ready when photos, alt texts, price, stock, rubrique and description are set", () => {
+    expect(publishReadiness(ready({}), cats)).toEqual([]);
+  });
+  it("lists what is missing", () => {
+    const p = ready({});
+    expect(publishReadiness({ ...p, images: [] }, cats)).toEqual(["photo"]);
+    expect(publishReadiness({ ...p, images: [{ ...p.images[0], alt: " " }] }, cats)).toEqual(["alt"]);
+    expect(publishReadiness({ ...p, variants: [{ ...p.variants[0], priceCents: null }] }, cats)).toEqual(["price"]);
+    expect(publishReadiness({ ...p, variants: [{ ...p.variants[0], active: false }] }, cats)).toEqual(["price"]);
+    expect(publishReadiness({ ...p, variants: [{ ...p.variants[0], stock: null }] }, cats)).toEqual(["stock"]);
+    expect(publishReadiness({ ...p, variants: [{ ...p.variants[0], stockMode: "made_to_order", stock: null }] }, cats)).toEqual([]);
+    expect(publishReadiness({ ...p, categorySlugs: ["masquee"] }, cats)).toEqual(["category"]);
+    expect(publishReadiness({ ...p, description: "  " }, cats)).toEqual(["description"]);
+  });
+  it("never exposes the Storage path or the admin photo route", () => {
+    const pub = toPublicProduct(ready({}));
+    expect(JSON.stringify(pub)).not.toContain("catalog-drafts");
+    expect(JSON.stringify(pub)).not.toContain("/admin/");
+  });
+});
 
 describe("merged catalogue", () => {
   it("keeps the demo sticker usable for the Stripe tests", () => {
@@ -75,15 +115,41 @@ describe("merged catalogue", () => {
     expect(isListed(demo, cats)).toBe(true);
   });
 
-  it("keeps new products out of the cart, the sitemap and the public shop", () => {
-    const merged = mergeProducts(fixtures.products, [stored({ status: "published", isDemo: true }), stored({ id: "real-headband-1", slug: "headband-1", status: "published" })]);
-    const cats = new Set(fixtures.categories.map((c) => c.slug));
-    for (const id of ["p-nouveau", "real-headband-1"]) {
-      const p = merged.find((x) => x.id === id)!;
-      expect(p.status).toBe("draft");
-      expect(p.isDemo).toBe(false);
-      expect(isListed(p, cats)).toBe(false);
-    }
+  it("keeps drafts, archived and incomplete products out of the cart, the sitemap and the public shop", () => {
+    const cats = new Set(fixtures.categories.filter((c) => c.visible).map((c) => c.slug));
+    const candidates = [
+      ready({ id: "p-brouillon", slug: "brouillon", status: "draft" }),
+      ready({ id: "p-archive", slug: "archive", status: "archived" }),
+      ready({ id: "p-sans-photo", slug: "sans-photo", images: [] }),
+      ready({ id: "real-headband-1", slug: "headband-1" }), // fixture id: never replaced
+      ready({ id: "p-copie", slug: fixtures.products[0].slug }), // slug taken
+    ];
+    const merged = addPublishedProducts(fixtures.products, candidates, cats);
+    expect(merged).toEqual(fixtures.products);
+    for (const p of previewProducts(fixtures.products, candidates.slice(2, 3), cats)) if (p.id === "p-sans-photo") expect(p.status).toBe("draft");
+  });
+
+  it("adds a complete published product to dourya.fr, with its public photos", () => {
+    const cats = new Set(fixtures.categories.filter((c) => c.visible).map((c) => c.slug));
+    const merged = addPublishedProducts(fixtures.products, [ready({ isDemo: true })], cats);
+    const added = merged.find((p) => p.id === "p-nouveau")!;
+    expect(added.isDemo).toBe(false);
+    expect(added.images).toEqual([{ src: "/catalogue/photos/p-nouveau/abcdef1234.webp", alt: "Nouveau", width: 800, height: 800 }]);
+    expect(added.variants[0].imageSrc).toBe("/catalogue/photos/p-nouveau/abcdef1234.webp");
+    expect(isListed(added, cats)).toBe(true);
+    expect(isListedPhoto(merged, "p-nouveau", "abcdef1234.webp")).toBe(true);
+    expect(isListedPhoto(merged, "p-nouveau", "autre12345.webp")).toBe(false);
+    expect(isListedPhoto(merged, fixtures.products[0].id, "abcdef1234.webp")).toBe(false);
+  });
+
+  it("uses the same rules for the production shop and the preview", () => {
+    const store = { categories: [], products: [ready({}), ready({ id: "p-brouillon", slug: "brouillon", status: "draft" })] };
+    const prod = shopCatalog("production", fixtures, store);
+    expect(prod.products.some((p) => p.id === "p-nouveau")).toBe(true);
+    expect(prod.products.some((p) => p.id === "p-brouillon")).toBe(false);
+    const test = shopCatalog("test", fixtures, store);
+    expect(test.products.find((p) => p.id === "p-brouillon")?.status).toBe("draft");
+    expect(test.products.find((p) => p.id === "p-nouveau")?.images[0].src).toBe("/catalogue/photos/p-nouveau/abcdef1234.webp");
   });
 
   it("adds stored categories without stealing a slug", () => {
@@ -169,13 +235,13 @@ describe("admin forms", () => {
     if (!bad.ok) expect(Object.keys(bad.errors).sort()).toEqual(["icon", "name", "order"]);
   });
 
-  it("validates a product and never publishes it", () => {
+  it("validates a product and never publishes it from the form", () => {
     const known = new Set(["stickers"]);
     const base = { name: "Sticker lune", categorySlugs: "stickers", variantCount: "2", "variant.0.name": "À l'unité", "variant.0.price": "1,95", "variant.0.stockMode": "stocked", "variant.0.stock": "3", "variant.0.active": "on", "variant.1.name": "", "variant.1.price": "" };
     const ok = validateProductForm(form(base), known);
     expect(ok.ok).toBe(true);
     if (ok.ok) {
-      expect(ok.value.status).toBe("draft");
+      expect(ok.value.status).toBeNull(); // unchanged: the status goes through « Publier »
       expect(ok.value.variants).toEqual([{ id: "a-l-unite", name: "À l'unité", priceCents: 195, stockMode: "stocked", stock: 3, active: true, imageSrc: null }]);
     }
     expect(validateProductForm(form({ ...base, status: "published" }), known).ok).toBe(false);

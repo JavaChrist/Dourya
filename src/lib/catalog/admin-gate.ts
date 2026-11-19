@@ -11,10 +11,10 @@ export { DRAFT_PHOTO_ROUTE, isDraftPhotoUrl } from "./draft-photo-url";
  * Open only:
  * - mode "production": on the Vercel production deployment (dourya.fr), with
  *   the production Firebase configuration ("(default)" database, the
- *   project's bucket). Lizzie prepares rubriques, drafts and photos there,
- *   but nothing of it reaches the public shop: catalogStoreMerged() is false
- *   in production, so dourya.fr keeps the fixture catalogue (pages, cart,
- *   sitemap). Publishing stays refused by validateProductForm;
+ *   project's bucket). Lizzie prepares rubriques, drafts and photos there.
+ *   dourya.fr adds the new visible rubriques and the new products she
+ *   published once complete (merge.ts shopCatalog, publish.ts); drafts,
+ *   archived records and their photos stay private, payment stays closed;
  * - mode "test": on the Vercel preview of the `stripe-test` branch, with
  *   FIRESTORE_DATABASE_ID = `dourya-test` and a Storage bucket known (the
  *   stored catalogue is merged in the preview's shop pages); or in local
@@ -68,10 +68,9 @@ export function catalogAdminState(env: Env): CatalogAdminState {
 export const catalogAdminEnabled = (env: Env): boolean => catalogAdminState(env).enabled;
 
 /**
- * Stored catalogue merged into the shop pages (catalogue, product pages,
- * search, cart, sitemap)? Only in mode "test". In production the admin works
- * on its own records and dourya.fr keeps the fixture catalogue: working
- * rubriques and drafts never appear in the public shop.
+ * Whole stored catalogue (drafts included) merged into the shop pages? Only
+ * in mode "test". In production only the published, complete products are
+ * added (merge.ts shopCatalog); kept for the tests.
  */
 export function catalogStoreMerged(env: Env): boolean {
   const state = catalogAdminState(env);
@@ -82,7 +81,7 @@ export function catalogStoreMerged(env: Env): boolean {
  * New visible rubriques of the catalogue admin shown in the shop (filters,
  * category pages, home grid, sitemap)? Wherever the admin is enabled,
  * production included. In production only new rubriques are added (merge.ts
- * addStoredCategories); products stay the fixtures.
+ * addStoredCategories).
  */
 export const catalogCategoriesMerged = (env: Env): boolean => catalogAdminState(env).enabled;
 

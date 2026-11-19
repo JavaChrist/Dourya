@@ -1,22 +1,23 @@
 import type { Category, Collection, Product } from "@/lib/types";
-import { catalogCategoriesMerged, catalogStoreMerged } from "./admin-gate";
+import { catalogAdminState } from "./admin-gate";
 import { isDraftPreview } from "./draft-preview";
 import { createFixtureRepository } from "./fixture-repository";
 import { fixtures } from "./fixtures";
-import { addStoredCategories, mergeCategories, mergeProducts } from "./merge";
+import { shopCatalog } from "./merge";
 import type { CatalogRepository } from "./repository";
 import { isListed, isShown, visibleCategories, visibleCollections } from "./visibility";
 
 /**
  * Public catalogue API used by pages and server actions.
  *
- * Fixtures (src/data) everywhere. On the stripe-test preview only (database
- * `dourya-test`, catalogStoreMerged in admin-gate.ts), the records written by
- * the catalogue admin are merged on top (merge.ts: demo products stay
- * untouched, stored products are always drafts). On dourya.fr only the NEW
- * visible rubriques are added (addStoredCategories, catalogCategoriesMerged):
- * the stored products are never merged there, the public shop, cart and
- * sitemap keep the fixture products.
+ * Fixtures (src/data) everywhere. Where the catalogue admin is open
+ * (admin-gate.ts), the records it wrote are added (merge.ts shopCatalog):
+ * - dourya.fr (mode "production"): the NEW visible rubriques and the NEW
+ *   published products that are still ready (publish.ts). A fixture or a demo
+ *   product is never replaced, a slug already taken is ignored, drafts and
+ *   archived records stay private. Payment stays closed (checkoutEnabled).
+ * - stripe-test preview (mode "test"): the stored records on top of the
+ *   fixtures; a stored product is published by the same rules, else a draft.
  *
  * Fixture-only repository (kept for the tests and as the fallback). */
 export const repository: CatalogRepository = createFixtureRepository(fixtures);
@@ -30,18 +31,12 @@ const loadStored = () =>
   }));
 
 async function currentRepository(): Promise<CatalogRepository> {
-  const full = catalogStoreMerged(process.env);
-  if (!full && !catalogCategoriesMerged(process.env)) return repository;
+  const state = catalogAdminState(process.env);
+  if (!state.enabled) return repository;
   try {
     const { cachedStoredCatalog } = await loadStored();
-    const stored = await cachedStoredCatalog();
-    // dourya.fr: new visible rubriques only, the products stay the fixtures.
-    if (!full) return createFixtureRepository({ ...fixtures, categories: addStoredCategories(fixtures.categories, stored.categories) });
-    return createFixtureRepository({
-      categories: mergeCategories(fixtures.categories, stored.categories),
-      collections: fixtures.collections,
-      products: mergeProducts(fixtures.products, stored.products),
-    });
+    const { categories, products } = shopCatalog(state.mode, fixtures, await cachedStoredCatalog());
+    return createFixtureRepository({ categories, collections: fixtures.collections, products });
   } catch (error) {
     // Loaded here: lib/log is server-only, and the fixture path stays importable by the unit tests.
     const { errorCode, logEvent } = await import("@/lib/log");

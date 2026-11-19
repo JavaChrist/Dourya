@@ -154,7 +154,8 @@ export type ProductInput = {
   slug: string;
   name: string;
   description: string;
-  status: "draft" | "archived";
+  /** null: unchanged (the form has no status field; « Publier », « Brouillon » and « Archiver » are separate actions). */
+  status: "draft" | "archived" | null;
   categorySlugs: string[];
   variants: VariantInput[];
 };
@@ -173,15 +174,15 @@ export function validateProductForm(form: FormData, knownCategorySlugs: Readonly
   const name = text(form, "name");
   const slug = text(form, "slug") || slugify(name);
   const description = text(form, "description");
-  const status = text(form, "status") || "draft";
+  const status = text(form, "status");
   const categorySlugs = [...new Set(form.getAll("categorySlugs").filter((v): v is string => typeof v === "string"))];
 
   if (id !== null && !PRODUCT_ID_PATTERN.test(id)) errors.id = "Fiche introuvable.";
   if (name.length < 2 || name.length > 80) errors.name = "Entre 2 et 80 caractères.";
   if (!SLUG_PATTERN.test(slug) || slug.length > 60) errors.slug = "Lettres minuscules, chiffres et tirets uniquement.";
   if (description.length > 2000) errors.description = "2000 caractères maximum.";
-  // Publishing stays closed during development: only draft or archived.
-  if (status !== "draft" && status !== "archived") errors.status = "La publication n'est pas ouverte : brouillon ou archivé uniquement.";
+  // Publishing never goes through the form: the « Publier » action checks the readiness first (publish.ts).
+  if (status !== "" && status !== "draft" && status !== "archived") errors.status = "Utilisez le bouton « Publier » de la fiche.";
   if (categorySlugs.length === 0) errors.categorySlugs = "Choisissez au moins une rubrique.";
   else if (categorySlugs.some((s) => !knownCategorySlugs.has(s))) errors.categorySlugs = "Rubrique inconnue.";
 
@@ -207,7 +208,7 @@ export function validateProductForm(form: FormData, knownCategorySlugs: Readonly
   if (new Set(variants.map((v) => v.id)).size !== variants.length) errors.variants = "Deux options portent le même nom.";
 
   if (Object.keys(errors).length) return { ok: false, errors };
-  return { ok: true, value: { id, slug, name, description, status: status as "draft" | "archived", categorySlugs, variants } };
+  return { ok: true, value: { id, slug, name, description, status: status === "" ? null : (status as "draft" | "archived"), categorySlugs, variants } };
 }
 
 /** Variant as stored: same shape as the fixtures (attributes empty, SKU from the slug). */

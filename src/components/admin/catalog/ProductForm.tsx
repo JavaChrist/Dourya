@@ -59,18 +59,6 @@ export function ProductForm({ product, categories }: { product?: Product; catego
         <FieldError id="categorySlugs" error={e.categorySlugs} />
       </fieldset>
 
-      <div>
-        <label htmlFor="status" className={labelClass}>
-          Statut
-        </label>
-        <select id="status" name="status" defaultValue={v("status", product?.status === "archived" ? "archived" : "draft")} className={selectClass}>
-          <option value="draft">Brouillon (visible dans l&apos;administration seulement)</option>
-          <option value="archived">Archivé</option>
-        </select>
-        <p className="mt-1 text-sm text-ink-muted">La publication n&apos;est pas ouverte pendant le développement.</p>
-        <FieldError id="status" error={e.status} />
-      </div>
-
       <fieldset className="space-y-3">
         <legend className={labelClass}>Modèles, options et prix</legend>
         <input type="hidden" name="variantCount" value={rows} />

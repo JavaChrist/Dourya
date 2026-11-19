@@ -4,13 +4,14 @@ import type { Category, Product } from "@/lib/types";
 /**
  * Access to the catalogue admin on dourya.fr (VERCEL_ENV=production):
  * customers and visitors never reach the admin pages, the actions or the
- * private draft photos; publishing stays refused; the public shop, cart and
- * sitemap show the new visible rubriques (even empty) but never the drafts.
+ * private draft photos; only an admin publishes, through « Publier »; the
+ * public shop, cart and sitemap show the new visible rubriques (even empty)
+ * and the complete published products, never the drafts or their photos.
  * Firebase, the session and Next are mocked: no network, no real account.
  */
 const session = vi.hoisted(() => ({ state: { status: "none" } as { status: string; user?: { uid: string; role: string } } }));
 const storage = vi.hoisted(() => ({ readDraftPhoto: vi.fn(async () => Buffer.from("RIFF0000WEBP")) }));
-const repo = vi.hoisted(() => ({ saveCategory: vi.fn(), saveProduct: vi.fn(), addPhoto: vi.fn(), editPhoto: vi.fn(), adminCatalog: vi.fn(async () => ({ categories: [{ slug: "stickers" }], products: [] })) }));
+const repo = vi.hoisted(() => ({ saveCategory: vi.fn(), saveProduct: vi.fn(), setProductStatus: vi.fn(), addPhoto: vi.fn(), editPhoto: vi.fn(), adminCatalog: vi.fn(async () => ({ categories: [{ slug: "stickers" }], products: [] })) }));
 const stored = vi.hoisted(() => ({ cachedStoredCatalog: vi.fn() }));
 
 vi.mock("server-only", () => ({}));
@@ -88,10 +89,12 @@ describe("admin pages and actions on dourya.fr", () => {
     await expect(actions.saveProductAction({ status: "idle" } as never, form)).rejects.toThrow("NEXT_NOT_FOUND");
     await expect(actions.uploadPhotoAction(form)).rejects.toThrow("NEXT_NOT_FOUND");
     await expect(actions.editPhotoAction({ status: "idle" } as never, form)).rejects.toThrow("NEXT_NOT_FOUND");
+    form.set("status", "published");
+    await expect(actions.setProductStatusAction({ status: "idle" } as never, form)).rejects.toThrow("NEXT_NOT_FOUND");
     for (const fn of Object.values(repo)) expect(fn).not.toHaveBeenCalled();
   });
 
-  it("refuse publishing, even for an admin", async () => {
+  it("refuse publishing from the form, even for an admin", async () => {
     const actions = await import("@/app/admin/catalogue/actions");
     session.state = admin;
     const form = new FormData();
@@ -99,6 +102,19 @@ describe("admin pages and actions on dourya.fr", () => {
     const result = await actions.saveProductAction({ status: "idle" } as never, form);
     expect(result.status).toBe("error");
     expect(repo.saveProduct).not.toHaveBeenCalled();
+  });
+
+  it("let an admin publish through « Publier », with a valid status only", async () => {
+    const actions = await import("@/app/admin/catalogue/actions");
+    session.state = admin;
+    const form = new FormData();
+    form.set("productId", "p-sticker-lune");
+    form.set("status", "en-ligne");
+    expect((await actions.setProductStatusAction({ status: "idle" } as never, form)).status).toBe("error");
+    expect(repo.setProductStatus).not.toHaveBeenCalled();
+    form.set("status", "published");
+    expect((await actions.setProductStatusAction({ status: "idle" } as never, form)).status).toBe("ok");
+    expect(repo.setProductStatus).toHaveBeenCalledWith("p-sticker-lune", "published");
   });
 });
 
@@ -123,5 +139,55 @@ describe("public shop of dourya.fr", () => {
     expect(urls.some((u) => u.endsWith("/categories/rubrique-de-travail"))).toBe(true);
     expect(urls.some((u) => u.includes("rubrique-cachee") || u.includes(`/produits/${draft.slug}`))).toBe(false);
     expect(await catalog.getProductForPage(draft.slug)).toBeUndefined();
+  });
+
+  const src = "/admin/catalogue/photos/p-sticker-lune/abcdef1234.webp";
+  const complete = async (over: Partial<Product> = {}) => {
+    const { realProducts } = await import("@/data/real-products");
+    return {
+      ...realProducts[0],
+      id: "p-sticker-lune",
+      slug: "sticker-lune",
+      status: "published",
+      isDemo: false,
+      description: "Un sticker.",
+      categorySlugs: ["rubrique-de-travail"],
+      images: [{ src, alt: "Sticker lune", width: 800, height: 800, storagePath: "catalog-drafts/p-sticker-lune/abcdef1234.webp" }],
+      variants: [{ ...realProducts[0].variants[0], priceCents: 195, stockMode: "stocked", stock: 3, active: true }],
+      ...over,
+    } as Product;
+  };
+  const publicPhoto = async (file = "abcdef1234.webp") => {
+    const { GET } = await import("@/app/catalogue/photos/[productId]/[file]/route");
+    return GET(new Request("https://dourya.fr/x"), { params: Promise.resolve({ productId: "p-sticker-lune", file }) });
+  };
+
+  it("lists a complete published product, with its public photo, and keeps checkout closed", async () => {
+    stored.cachedStoredCatalog.mockResolvedValue({ categories: [working], products: [await complete()] });
+    const catalog = await import("@/lib/catalog");
+    const listed = await catalog.getListedProducts();
+    const product = listed.find((p) => p.id === "p-sticker-lune")!;
+    expect(product.images[0]).toEqual({ src: "/catalogue/photos/p-sticker-lune/abcdef1234.webp", alt: "Sticker lune", width: 800, height: 800 });
+    expect((await catalog.getProductForPage("sticker-lune"))?.id).toBe("p-sticker-lune");
+    const { default: sitemap } = await import("@/app/sitemap");
+    expect((await sitemap()).some((e) => e.url.endsWith("/produits/sticker-lune"))).toBe(true);
+    const { commerceConfig } = await import("@/config/commerce");
+    expect(commerceConfig.checkoutEnabled).toBe(false);
+
+    session.state = { status: "none" };
+    const res = await publicPhoto();
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Cache-Control")).toBe("public, max-age=300, s-maxage=300");
+    expect(storage.readDraftPhoto).toHaveBeenCalledWith("p-sticker-lune", "abcdef1234.webp");
+    expect((await publicPhoto("autre12345.webp")).status).toBe(404);
+  });
+
+  it("never serves the photos of a draft, an archived or an incomplete product", async () => {
+    session.state = { status: "none" };
+    for (const over of [{ status: "draft" }, { status: "archived" }, { description: "" }, { categorySlugs: ["inconnue"] }] as Partial<Product>[]) {
+      stored.cachedStoredCatalog.mockResolvedValue({ categories: [working], products: [await complete(over)] });
+      expect((await publicPhoto()).status).toBe(404);
+    }
+    expect(storage.readDraftPhoto).not.toHaveBeenCalled();
   });
 });

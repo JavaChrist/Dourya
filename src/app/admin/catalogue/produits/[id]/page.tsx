@@ -5,12 +5,14 @@ import { Suspense } from "react";
 import { ExternalLink } from "lucide-react";
 import { Card, secondaryButton } from "@/components/account/ui";
 import { PhotoManager } from "@/components/admin/catalog/PhotoManager";
+import { PublishPanel } from "@/components/admin/catalog/PublishPanel";
 import { ProductForm } from "@/components/admin/catalog/ProductForm";
 import { AdminHeader, CatalogClosed, DraftOnlyNotice } from "@/components/admin/catalog/shared";
 import { Notice } from "@/components/auth/FormParts";
 import { requireAdmin } from "@/lib/auth/dal";
 import { PRODUCT_ID_PATTERN, catalogAdminState } from "@/lib/catalog/admin-gate";
-import { adminCatalog } from "@/lib/catalog/admin-repository";
+import { adminCatalog, isFixtureProduct } from "@/lib/catalog/admin-repository";
+import { READINESS_LABEL, publishReadiness } from "@/lib/catalog/publish";
 import { MAX_IMAGES } from "@/lib/catalog/stored-schema";
 
 export const metadata: Metadata = { title: "Fiche produit" };
@@ -21,7 +23,7 @@ async function Content({ params, searchParams }: { params: Promise<{ id: string 
   if (!state.enabled) return <CatalogClosed state={state} />;
   const { id } = await params;
   if (!PRODUCT_ID_PATTERN.test(id)) notFound();
-  const { products, categories } = await adminCatalog();
+  const { products, categories, visibleInShop } = await adminCatalog();
   const product = products.find((p) => p.id === id);
   if (!product) notFound();
   if (product.isDemo)
@@ -31,6 +33,9 @@ async function Content({ params, searchParams }: { params: Promise<{ id: string 
       </div>
     );
   const created = (await searchParams).cree === "1";
+  const missing = publishReadiness(product, visibleInShop).map((i) => READINESS_LABEL[i]);
+  // Fixture products (src/data) stay as the code defines them: the shop never lets a stored record replace them.
+  const blocked = isFixtureProduct(product.id) ? "Fiche du catalogue d'origine (définie dans le code) : elle ne se publie pas depuis l'administration. Créez une nouvelle fiche pour la mettre en vente." : undefined;
   return (
     <div className="mt-8 space-y-6">
       {created && <Notice tone="success">Fiche créée en brouillon. Ajoutez ses photos ci-dessous.</Notice>}
@@ -45,6 +50,9 @@ async function Content({ params, searchParams }: { params: Promise<{ id: string 
           </Link>
         )}
       </div>
+      <Card title="Publication">
+        <PublishPanel productId={product.id} slug={product.slug} status={product.status} missing={missing} blocked={blocked} />
+      </Card>
       <Card title="Photos">
         <PhotoManager productId={product.id} productName={product.name} images={product.images} max={MAX_IMAGES} />
       </Card>

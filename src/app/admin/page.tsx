@@ -67,7 +67,7 @@ async function AdminContent() {
         )}
 
         <Card title="Catalogue">
-          <p className="text-ink-muted">Rubriques, fiches en brouillon et photos privées. Les nouvelles rubriques visibles apparaissent dans la boutique ; les fiches restent privées tant que la publication est fermée.</p>
+          <p className="text-ink-muted">Rubriques, fiches produits et photos. Les nouvelles rubriques visibles apparaissent dans la boutique ; une fiche n&apos;y apparaît qu&apos;une fois complète et publiée. La vente reste fermée.</p>
           <Link href="/admin/catalogue" className={`${secondaryButton} mt-4`}>
             Ouvrir le catalogue
           </Link>

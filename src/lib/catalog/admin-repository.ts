@@ -1,12 +1,13 @@
 import "server-only";
 import { randomBytes } from "node:crypto";
 import { adminDb } from "@/lib/firebase/admin-db";
-import type { Category, ImageAsset, Product } from "@/lib/types";
-import { catalogAdminEnabled, draftPhotoUrl } from "./admin-gate";
+import type { Category, ImageAsset, Product, PublishStatus } from "@/lib/types";
+import { catalogAdminEnabled, catalogAdminState, draftPhotoUrl } from "./admin-gate";
 import { CatalogClosedError, deleteDraftPhoto, saveDraftPhoto } from "./admin-storage";
 import { fixtures } from "./fixtures";
 import { toStoredProductDoc } from "./import-plan";
-import { mergeCategories, mergeProducts } from "./merge";
+import { mergeCategories, mergeProducts, shopCatalog } from "./merge";
+import { READINESS_LABEL, isReadyToPublish, publishReadiness } from "./publish";
 import { CATEGORIES_COLLECTION, PRODUCTS_COLLECTION, readStoredCatalog } from "./stored-catalog";
 import { MAX_IMAGES, linkVariantImages, parseStoredProduct, toVariant, type CategoryInput, type ProductInput } from "./stored-schema";
 
@@ -27,13 +28,22 @@ export class CatalogRefusal extends Error {
   }
 }
 
-export type AdminCatalog = { categories: Category[]; products: Product[]; storedProductIds: Set<string>; storedCategoryIds: Set<string> };
+export type AdminCatalog = {
+  categories: Category[];
+  products: Product[];
+  storedProductIds: Set<string>;
+  storedCategoryIds: Set<string>;
+  /** Rubriques visible in the shop of this deployment (readiness check, see publish.ts). */
+  visibleInShop: Set<string>;
+};
 
 /** Fresh merged catalogue for the admin pages (all statuses, hidden categories included). */
 export async function adminCatalog(): Promise<AdminCatalog> {
-  assertOpen();
+  const state = catalogAdminState(process.env);
+  if (!state.enabled) throw new CatalogClosedError();
   const stored = await readStoredCatalog();
   return {
+    visibleInShop: shopCatalog(state.mode, fixtures, stored).visible,
     categories: mergeCategories(fixtures.categories, stored.categories).sort((a, b) => a.order - b.order || a.name.localeCompare(b.name, "fr")),
     products: mergeProducts(fixtures.products, stored.products).sort((a, b) => a.name.localeCompare(b.name, "fr")),
     storedProductIds: new Set(stored.products.map((p) => p.id)),
@@ -43,6 +53,8 @@ export async function adminCatalog(): Promise<AdminCatalog> {
 
 const demoIds = new Set(fixtures.products.filter((p) => p.isDemo).map((p) => p.id));
 export const isDemoProduct = (id: string) => demoIds.has(id);
+/** Product of the code catalogue (src/data): never published from the admin (merge.ts never lets a stored copy replace it in the shop). */
+export const isFixtureProduct = (id: string) => fixtures.products.some((p) => p.id === id);
 
 // ---- Categories -------------------------------------------------------------
 
@@ -66,9 +78,14 @@ export async function saveCategory(input: CategoryInput): Promise<Category> {
 
 const toDoc = (p: Product) => toStoredProductDoc(p, new Date().toISOString());
 
-export async function saveProduct(input: ProductInput): Promise<Product> {
+/**
+ * Saves the form. The status is kept (the form has none), except that a
+ * published product which is no longer ready after the change goes back to
+ * draft (`unpublished`), so the shop never shows an incomplete product.
+ */
+export async function saveProduct(input: ProductInput): Promise<{ product: Product; unpublished: boolean }> {
   assertOpen();
-  const { products } = await adminCatalog();
+  const { products, visibleInShop } = await adminCatalog();
   if (input.id && isDemoProduct(input.id)) throw new CatalogRefusal("Les produits de démonstration ne se modifient pas ici.");
   const existing = input.id ? products.find((p) => p.id === input.id) : undefined;
   if (input.id && !existing) throw new CatalogRefusal("Fiche introuvable.");
@@ -82,7 +99,7 @@ export async function saveProduct(input: ProductInput): Promise<Product> {
     slug,
     name: input.name,
     description: input.description,
-    status: input.status,
+    status: input.status ?? existing?.status ?? "draft",
     categorySlugs: input.categorySlugs,
     collectionSlugs: existing?.collectionSlugs ?? [],
     images: existing?.images ?? [],
@@ -91,8 +108,40 @@ export async function saveProduct(input: ProductInput): Promise<Product> {
     createdAt: existing?.createdAt || now,
     updatedAt: now,
   };
-  await adminDb().collection(PRODUCTS_COLLECTION).doc(id).set(toDoc(product));
-  return product;
+  const unpublished = product.status === "published" && (isFixtureProduct(id) || !isReadyToPublish(product, visibleInShop));
+  if (unpublished) product.status = "draft";
+  // toDoc() writes "published" as a draft (import rule): the status checked above is written explicitly.
+  await adminDb().collection(PRODUCTS_COLLECTION).doc(id).set({ ...toDoc(product), status: product.status });
+  return { product, unpublished };
+}
+
+/**
+ * « Publier », « Repasser en brouillon », « Archiver ». Publishing re-checks
+ * the readiness on the stored record, inside the transaction; a demo product
+ * or a product of the code catalogue is never published from here.
+ */
+export async function setProductStatus(productId: string, status: PublishStatus): Promise<void> {
+  assertOpen();
+  if (isDemoProduct(productId)) throw new CatalogRefusal("Les produits de démonstration ne se modifient pas ici.");
+  if (status === "published" && isFixtureProduct(productId))
+    throw new CatalogRefusal("Cette fiche fait partie du catalogue du code du site : elle ne se publie pas depuis l'administration.");
+  const { products, visibleInShop } = await adminCatalog();
+  const db = adminDb();
+  const ref = db.collection(PRODUCTS_COLLECTION).doc(productId);
+  const fixture = fixtures.products.find((p) => p.id === productId);
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    const base = snap.exists ? (parseStoredProduct(snap.id, snap.data()) ?? undefined) : fixture;
+    if (!base) throw new CatalogRefusal("Fiche introuvable. Enregistrez d'abord la fiche.");
+    if (status === "published") {
+      const issues = publishReadiness(base, visibleInShop);
+      if (issues.length) throw new CatalogRefusal(`La fiche n'est pas prête : ${issues.map((i) => READINESS_LABEL[i]).join(" ")}`);
+      if (products.some((p) => p.id !== productId && p.slug === base.slug)) throw new CatalogRefusal("Une autre fiche utilise déjà cette adresse.");
+    }
+    const now = new Date().toISOString();
+    if (snap.exists) tx.update(ref, { status, updatedAt: now });
+    else tx.set(ref, { ...toDoc({ ...base, status }), status });
+  });
 }
 
 /**

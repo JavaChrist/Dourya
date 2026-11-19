@@ -1,6 +1,6 @@
 import Image from "next/image";
 import { ImageIcon } from "lucide-react";
-import { isDraftPhotoUrl } from "@/lib/catalog/draft-photo-url";
+import { isUploadedPhotoUrl } from "@/lib/catalog/draft-photo-url";
 import type { Slide } from "@/lib/types";
 import { backgroundProps } from "./Section";
 
@@ -28,7 +28,7 @@ export function SlideVisual({
         sizes={sizes}
         priority={priority}
         // Draft photos (catalogue admin) are served to signed-in admins only: never through the optimizer.
-        unoptimized={isDraftPhotoUrl(slide.image.src)}
+        unoptimized={isUploadedPhotoUrl(slide.image.src)}
         className={`object-cover ${className}`}
       />
     );
