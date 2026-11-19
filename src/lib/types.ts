@@ -69,7 +69,9 @@ export type MailClubConfig = {
 };
 
 /** Lucide icon names allowed for categories (mapped in components/ui/CategoryIcon). */
-export type CategoryIconName = "print" | "sticker" | "keychain" | "headband" | "sparkles";
+export type CategoryIconName =
+  "print" | "sticker" | "keychain" | "headband" | "sparkles"
+  | "tshirt" | "mug" | "gift" | "heart" | "star" | "palette" | "book" | "gem" | "cat" | "flower" | "bag" | "badge" | "postcard" | "brush" | "picture";
 
 /** `storagePath`: set on the draft photos uploaded through the catalogue admin (Storage, catalog-drafts/**). */
 export type ImageAsset = { src: string; alt: string; width: number; height: number; storagePath?: string };

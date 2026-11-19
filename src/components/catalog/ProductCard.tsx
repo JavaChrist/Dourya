@@ -19,7 +19,7 @@ export function ProductCard({ product }: { product: Product }) {
 
   return (
     <Link href={`/produits/${product.slug}`} className="group block rounded-md">
-      <div className="relative aspect-[4/5] overflow-hidden rounded-md shadow-[0_4px_0_rgba(43,18,32,0.12)] transition group-hover:-translate-y-0.5">
+      <div className="relative aspect-[4/5] overflow-hidden rounded-md border-2 border-secondary/40 shadow-[0_4px_0_rgba(43,18,32,0.12)] transition group-hover:-translate-y-0.5">
         <SlideVisual slide={visual} sizes="(max-width: 768px) 50vw, 25vw" />
         {unavailable && (
           <span className="absolute bottom-2 left-2 rounded-full bg-white/95 px-2.5 py-0.5 text-xs font-bold text-ink">

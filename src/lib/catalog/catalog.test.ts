@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { getListedProducts, getProductForPage, getVisibleCategories } from "./index";
 import { parseShopParams, queryProducts, shopHref } from "./query";
-import { productPageState, variantAvailability } from "./visibility";
+import { productPageState, variantAvailability, visibleCategories } from "./visibility";
+import type { Category } from "@/lib/types";
 import { product, variant } from "@/test/factories";
 
 describe("catalogue visibility (fixture repository)", () => {
@@ -17,6 +18,12 @@ describe("catalogue visibility (fixture repository)", () => {
     expect(listed).not.toContain("demo-brouillon");
     expect((await getProductForPage("demo-archive"))?.status).toBe("archived");
     expect(await getProductForPage("demo-brouillon")).toBeUndefined();
+  });
+
+  it("sorts visible categories by order, then by name", () => {
+    const cat = (name: string, order: number, visible = true): Category => ({ id: name, slug: name.toLowerCase(), name, icon: "heart", visible, order });
+    const sorted = visibleCategories([cat("Zèbres", 100), cat("Avatars", 100), cat("Prints", 1), cat("Cachée", 0, false), cat("Écharpes", 100)]);
+    expect(sorted.map((c) => c.name)).toEqual(["Prints", "Avatars", "Écharpes", "Zèbres"]);
   });
 
   it("gives each state its availability", () => {

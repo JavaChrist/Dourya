@@ -3,11 +3,11 @@ import type { Category, Collection, Product, ProductVariant } from "@/lib/types"
 /** Publication rules, independent from the storage. */
 
 export function visibleCategories(categories: Category[]): Category[] {
-  return categories.filter((c) => c.visible).sort((a, b) => a.order - b.order);
+  return categories.filter((c) => c.visible).sort((a, b) => a.order - b.order || a.name.localeCompare(b.name, "fr"));
 }
 
 export function visibleCollections(collections: Collection[]): Collection[] {
-  return collections.filter((c) => c.visible).sort((a, b) => a.order - b.order);
+  return collections.filter((c) => c.visible).sort((a, b) => a.order - b.order || a.name.localeCompare(b.name, "fr"));
 }
 
 /**

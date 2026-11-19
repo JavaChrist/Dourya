@@ -28,7 +28,7 @@ export function ProductGallery({ slides, name }: { slides: Slide[]; name: string
   return (
     // min-w-0: a long thumbnail strip scrolls inside the grid column instead of widening the page.
     <div className="min-w-0">
-      <div className="relative aspect-square overflow-hidden rounded-lg shadow-[0_6px_0_rgba(43,18,32,0.14)]">
+      <div className="relative aspect-square overflow-hidden rounded-lg border-2 border-secondary/40 shadow-[0_6px_0_rgba(43,18,32,0.14)]">
         <SlideVisual slide={current} sizes="(max-width: 768px) 100vw, 560px" priority />
         <button
           type="button"
@@ -50,7 +50,7 @@ export function ProductGallery({ slides, name }: { slides: Slide[]; name: string
                 onClick={() => setIndex(i)}
                 aria-label={`Visuel ${i + 1} sur ${slides.length}`}
                 aria-pressed={i === index}
-                className={`relative block size-16 overflow-hidden rounded-md ring-offset-2 sm:size-20 ${i === index ? "ring-3 ring-primary" : "opacity-80 hover:opacity-100"}`}
+                className={`relative block size-16 overflow-hidden rounded-md border-2 border-secondary/40 ring-offset-2 sm:size-20 ${i === index ? "ring-3 ring-primary" : "opacity-80 hover:opacity-100"}`}
               >
                 <SlideVisual slide={{ ...s, isDemo: false }} sizes="80px" className="[&>div]:hidden" />
               </button>

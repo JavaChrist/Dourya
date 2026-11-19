@@ -29,7 +29,7 @@ async function Content() {
           return (
             <li key={p.id}>
               <Link href={`/admin/catalogue/produits/${p.id}`} className="flex items-center gap-4 px-4 py-3 hover:bg-surface-muted">
-                <div className="relative size-14 shrink-0 overflow-hidden rounded-xl bg-surface-muted">
+                <div className="relative size-14 shrink-0 overflow-hidden rounded-xl border-2 border-secondary/40 bg-white">
                   {cover && <Image src={cover.src} alt="" fill sizes="56px" className="bg-white object-contain" unoptimized={isDraftPhotoUrl(cover.src)} />}
                 </div>
                 <div className="min-w-0 flex-1">

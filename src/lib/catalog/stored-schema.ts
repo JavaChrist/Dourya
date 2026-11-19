@@ -6,7 +6,28 @@ import { PRODUCT_ID_PATTERN } from "./admin-gate";
  * admin forms. Pure (no Firebase), unit-tested.
  */
 
-export const CATEGORY_ICONS: readonly CategoryIconName[] = ["print", "sticker", "keychain", "headband", "sparkles"];
+export const CATEGORY_ICONS: readonly CategoryIconName[] = [
+  "print",
+  "sticker",
+  "keychain",
+  "headband",
+  "sparkles",
+  "tshirt",
+  "mug",
+  "gift",
+  "heart",
+  "star",
+  "palette",
+  "book",
+  "gem",
+  "cat",
+  "flower",
+  "bag",
+  "badge",
+  "postcard",
+  "brush",
+  "picture",
+];
 export const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 export const MAX_IMAGES = 24;
 export const MAX_VARIANTS = 12;

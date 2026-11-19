@@ -150,7 +150,7 @@ function CartLine({ line, onQuantity, onRemove }: { line: PricedLine; onQuantity
 
   return (
     <li className="flex gap-4 p-4">
-      <div className="relative size-20 shrink-0 overflow-hidden rounded-md sm:size-24">
+      <div className="relative size-20 shrink-0 overflow-hidden rounded-md border-2 border-secondary/40 sm:size-24">
         <SlideVisual
           slide={{ id: line.key, title: name, image: line.image, background: line.demoVisual ?? { kind: "grid" }, isDemo: line.isDemo }}
           sizes="96px"

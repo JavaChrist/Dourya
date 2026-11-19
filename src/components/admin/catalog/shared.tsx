@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { ArrowLeft } from "lucide-react";
 import { Notice } from "@/components/auth/FormParts";
 import type { CatalogAdminMode, CatalogAdminState } from "@/lib/catalog/admin-gate";
+import type { CategoryIconName } from "@/lib/types";
 
 export const textareaClass =
   "mt-1.5 min-h-28 w-full rounded-2xl border-2 border-secondary/40 bg-white px-4 py-3 text-base text-ink focus:border-ink focus:outline-none aria-[invalid=true]:border-pink-strong";
@@ -10,7 +11,28 @@ export const selectClass =
   "mt-1.5 h-11 w-full rounded-full border-2 border-secondary/40 bg-white px-4 text-base text-ink focus:border-ink focus:outline-none";
 export const labelClass = "block text-sm font-bold text-ink";
 
-export const ICON_LABEL = { print: "Print", sticker: "Sticker", keychain: "Porte-clés", headband: "Headband", sparkles: "Étoiles" } as const;
+export const ICON_LABEL: Record<CategoryIconName, string> = {
+  print: "Print",
+  sticker: "Sticker",
+  keychain: "Porte-clés",
+  headband: "Headband",
+  sparkles: "Étoiles",
+  tshirt: "T-shirt",
+  mug: "Tasse",
+  gift: "Cadeau",
+  heart: "Cœur",
+  star: "Étoile",
+  palette: "Palette",
+  book: "Livre",
+  gem: "Bijou",
+  cat: "Chat",
+  flower: "Fleur",
+  bag: "Sac",
+  badge: "Badge",
+  postcard: "Carte postale",
+  brush: "Pinceau",
+  picture: "Image",
+};
 export const STATUS_LABEL = { draft: "Brouillon", published: "Publié", archived: "Archivé" } as const;
 
 export function FieldError({ id, error }: { id: string; error?: string }) {

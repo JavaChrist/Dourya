@@ -98,7 +98,7 @@ function PhotoCard({ productId, image, index, count }: { productId: string; imag
   );
   return (
     <li className="space-y-2 rounded-2xl bg-white p-3 ring-1 ring-secondary/30">
-      <div className="relative aspect-square overflow-hidden rounded-xl bg-surface-muted">
+      <div className="relative aspect-square overflow-hidden rounded-xl border-2 border-secondary/40 bg-white">
         <Image src={image.src} alt={image.alt} fill sizes="(min-width: 640px) 220px, 45vw" className="bg-white object-contain" unoptimized={isDraftPhotoUrl(image.src)} />
         {index === 0 && <span className="absolute left-2 top-2 rounded-full bg-white/90 px-2 py-0.5 text-xs font-bold text-ink">Couverture</span>}
         <span className="absolute bottom-2 right-2 rounded-full bg-white/90 px-2 py-0.5 text-xs font-bold text-ink">Photo {index + 1}</span>

@@ -230,6 +230,7 @@ describe("admin forms", () => {
   it("validates a category", () => {
     const ok = validateCategoryForm(form({ name: "Bijoux d'été", icon: "sparkles", order: "50", visible: "on" }));
     expect(ok).toEqual({ ok: true, value: { id: null, slug: "bijoux-d-ete", name: "Bijoux d'été", description: "", icon: "sparkles", visible: true, order: 50 } });
+    expect(validateCategoryForm(form({ name: "Tasses", icon: "mug", order: "5" })).ok).toBe(true);
     const bad = validateCategoryForm(form({ name: "x", icon: "nope", order: "-1" }));
     expect(bad.ok).toBe(false);
     if (!bad.ok) expect(Object.keys(bad.errors).sort()).toEqual(["icon", "name", "order"]);
