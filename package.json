@@ -10,6 +10,7 @@
     "lint": "eslint",
     "test": "vitest run --project unit",
     "test:integration": "node scripts/emulators.mjs \"vitest run --project integration\"",
+    "test:stripe-real": "node scripts/emulators.mjs \"vitest run --project integration tests/checkout/stripe-real\"",
     "typecheck": "tsc --noEmit",
     "email:preview": "email dev --dir src/emails --port 3030",
     "email:test": "node scripts/email-send-test.mjs",
