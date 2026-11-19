@@ -2,6 +2,8 @@
 
 import { getListedProducts } from "@/lib/catalog";
 import { priceCart } from "@/lib/cart/pricing";
+import { checkoutSwitch } from "@/lib/checkout/test-preview";
+import { stripeMode } from "@/lib/payments/stripe";
 import type { PricedCart } from "@/lib/cart/types";
 
 /**
@@ -11,5 +13,6 @@ import type { PricedCart } from "@/lib/cart/types";
  */
 export async function priceCartAction(items: unknown): Promise<PricedCart> {
   const products = await getListedProducts();
-  return priceCart(items, products);
+  const open = checkoutSwitch(process.env, stripeMode());
+  return priceCart(items, products, { checkoutEnabled: open.checkoutEnabled, allowDemo: open.allowDemoCheckoutInTestMode });
 }

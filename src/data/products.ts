@@ -10,6 +10,13 @@ import type { Product, ProductVariant } from "@/lib/types";
 
 const DATE = "2026-11-18T00:00:00.000Z";
 
+/** Demo packed sizes (print in its rigid sleeve), so shipping rates can be tested. */
+const PRINT_SLEEVE = {
+  A5: { length: 220, width: 160, height: 3 },
+  A4: { length: 307, width: 220, height: 3 },
+  A3: { length: 430, width: 307, height: 3 },
+} as const;
+
 function printVariant(format: "A5" | "A4" | "A3", priceCents: number, weightGrams: number): ProductVariant {
   return {
     id: format.toLowerCase(),
@@ -18,6 +25,7 @@ function printVariant(format: "A5" | "A4" | "A3", priceCents: number, weightGram
     attributes: [{ name: "Format", value: format }],
     priceCents,
     weightGrams,
+    packedDimensionsMm: PRINT_SLEEVE[format],
     stockMode: "made_to_order",
     active: true,
   };
@@ -75,6 +83,7 @@ export const products: Product[] = [
         attributes: [],
         priceCents: 300,
         weightGrams: 5,
+        packedDimensionsMm: { length: 90, width: 90, height: 1 },
         stockMode: "stocked",
         stock: 3,
         lowStockThreshold: 5,
@@ -103,6 +112,7 @@ export const products: Product[] = [
         attributes: [],
         priceCents: 800,
         weightGrams: 15,
+        packedDimensionsMm: { length: 160, width: 110, height: 1 },
         stockMode: "stocked",
         stock: 0,
         lowStockThreshold: 3,
@@ -131,6 +141,7 @@ export const products: Product[] = [
         attributes: [],
         priceCents: 900,
         weightGrams: 30,
+        packedDimensionsMm: { length: 100, width: 70, height: 10 },
         stockMode: "made_to_order",
         active: true,
       },

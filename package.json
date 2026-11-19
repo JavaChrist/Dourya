@@ -13,7 +13,8 @@
     "typecheck": "tsc --noEmit",
     "email:preview": "email dev --dir src/emails --port 3030",
     "email:test": "node scripts/email-send-test.mjs",
-    "admin:role": "node --env-file-if-exists=.env.local scripts/admin-role.mjs"
+    "admin:role": "node --env-file-if-exists=.env.local scripts/admin-role.mjs",
+    "seed:test": "node --env-file-if-exists=.env.local scripts/seed-dourya-test.mjs"
   },
   "dependencies": {
     "@react-email/components": "^1.0.12",

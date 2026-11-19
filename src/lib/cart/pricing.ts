@@ -7,6 +7,8 @@ import type { CartItem, PersonalisationSnapshot, PricedCart, PricedLine } from "
 export type PricingOptions = {
   now?: Date;
   checkoutEnabled?: boolean;
+  /** Test preview only (test Stripe key): demo products may go to checkout. */
+  allowDemo?: boolean;
   defaultMaxQuantityPerLine?: number;
 };
 
@@ -140,6 +142,6 @@ export function priceCart(input: unknown, products: Product[], options: PricingO
     itemCount: orderable.reduce((sum, l) => sum + l.quantity, 0),
     hasDemo,
     hasBlockingIssue,
-    checkoutAllowed: checkoutEnabled && !hasDemo && !hasBlockingIssue && orderable.length > 0,
+    checkoutAllowed: checkoutEnabled && (!hasDemo || options.allowDemo === true) && !hasBlockingIssue && orderable.length > 0,
   };
 }

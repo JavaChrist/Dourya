@@ -205,6 +205,12 @@ describe("priceCart: checkout", () => {
     expect(cart.checkoutAllowed).toBe(false);
   });
 
+  it("allows demo products only when the test preview says so", () => {
+    const items = [{ productId: "demo-print-a5", variantId: "a5", quantity: 1 }];
+    expect(priceCart(items, demoProducts, { ...opts, allowDemo: true }).checkoutAllowed).toBe(true);
+    expect(priceCart(items, demoProducts, { ...opts, checkoutEnabled: false, allowDemo: true }).checkoutAllowed).toBe(false);
+  });
+
   it("is blocked by a line in error", () => {
     const cart = priceCart(
       [

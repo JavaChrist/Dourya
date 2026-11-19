@@ -5,6 +5,7 @@ import { getSessionUser } from "@/lib/auth/dal";
 import { getListedProducts } from "@/lib/catalog";
 import { buildCheckout, checkoutGate, type GateReason } from "@/lib/checkout/build";
 import { placeOrder, type PlaceOrderErrorCode } from "@/lib/checkout/service";
+import { checkoutSwitch } from "@/lib/checkout/test-preview";
 import type { FieldErrors } from "@/lib/account/validation";
 import type { PricedLine } from "@/lib/cart/types";
 import { getShippingSettings } from "@/lib/orders/repository";
@@ -43,7 +44,8 @@ const SHIPPING_MESSAGES: Record<string, string> = {
 export async function checkoutSummaryAction(items: unknown, country: unknown): Promise<CheckoutSummary> {
   const [products, settings] = await Promise.all([getListedProducts(), getShippingSettings()]);
   const draft = buildCheckout({ items, products, settings, country: typeof country === "string" ? country.toUpperCase() : "FR" });
-  const gate = checkoutGate({ keyMode: stripeMode(), hasDemo: draft.cart.hasDemo });
+  const keyMode = stripeMode();
+  const gate = checkoutGate({ keyMode, hasDemo: draft.cart.hasDemo, ...checkoutSwitch(process.env, keyMode) });
   return {
     lines: draft.cart.lines.map(({ key, productName, variantName, quantity, unitPriceCents, lineTotalCents, personalisation, isDemo, status, message }) => ({
       key, productName, variantName, quantity, unitPriceCents, lineTotalCents, personalisation, isDemo, status, message,
@@ -98,7 +100,7 @@ export async function placeOrderAction(input: {
       acceptTerms: input?.acceptTerms,
       expectedTotalCents: input?.expectedTotalCents,
     },
-    { stripe: getStripe(), products, settings, customer: user ? { uid: user.uid } : null, origin },
+    { stripe: getStripe(), products, settings, customer: user ? { uid: user.uid } : null, origin, checkout: checkoutSwitch(process.env, stripeMode()) },
   );
   if (result.kind === "redirect") {
     // Only Stripe's hosted page or our own return page.
