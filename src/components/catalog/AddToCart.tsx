@@ -190,6 +190,14 @@ export function AddToCart({
         </div>
       )}
 
+      {/* Not for sale (draft, stock to validate, out of stock): still show its price and why. */}
+      {!variant.purchasable && variants.length === 1 && (variant.priceCents !== null || variant.note) && (
+        <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+          {variant.priceCents !== null && <p className="font-display text-3xl font-semibold text-ink">{formatPrice(variant.priceCents)}</p>}
+          {variant.note && <p className="text-sm font-bold text-ink-muted">{variant.note}</p>}
+        </div>
+      )}
+
       <button
         type="submit"
         disabled={!variant.purchasable}
