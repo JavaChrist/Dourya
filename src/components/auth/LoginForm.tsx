@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState, type FormEvent } from "react";
+import { useState, useSyncExternalStore, type FormEvent } from "react";
 import { sendEmailVerification, signInWithEmailAndPassword, signOut } from "firebase/auth";
 import { startSessionAction } from "@/lib/auth/actions";
 import type { SessionScope } from "@/lib/auth/config";
@@ -11,6 +11,12 @@ import { signInErrorMessage, siteUrl } from "@/lib/firebase/auth-errors";
 import { ConfigMissing, Field, Notice, SubmitButton } from "./FormParts";
 import { GoogleButton, OrDivider } from "./GoogleButton";
 import { PasswordField } from "./PasswordField";
+import {
+  forgetAdminEmail,
+  readRememberedAdminEmail,
+  rememberAdminEmail,
+  subscribeRememberedAdminEmail,
+} from "./remembered-admin-email";
 import { useResetOnLeave } from "./useResetOnLeave";
 
 const NOTICES: Record<string, { tone: "info" | "success"; text: string }> = {
@@ -48,6 +54,10 @@ export function LoginForm({ scope }: { scope: SessionScope }) {
     setError(null);
     setInfo(null);
   });
+
+  // Admin form only: the e-mail of the last admin sign-in on this device (null on the server and for customers).
+  const stored = useSyncExternalStore(subscribeRememberedAdminEmail, readRememberedAdminEmail, () => null);
+  const remembered = scope === "admin" ? stored : null;
 
   const reason = params.get("raison");
   const notice = reason ? NOTICES[reason] : undefined;
@@ -88,6 +98,7 @@ export function LoginForm({ scope }: { scope: SessionScope }) {
         setPending(false);
         return;
       }
+      if (scope === "admin") rememberAdminEmail(email);
       router.replace(result.redirectTo);
       router.refresh();
     } catch (err) {
@@ -111,8 +122,33 @@ export function LoginForm({ scope }: { scope: SessionScope }) {
         </>
       )}
 
-      <Field id="email" label="Adresse e-mail" type="email" autoComplete="email" inputMode="email" required maxLength={254} />
-      <PasswordField id="password" label="Mot de passe" autoComplete="current-password" required maxLength={128} />
+      <Field
+        // Remounted when the remembered e-mail appears or is forgotten, so defaultValue applies (form.reset() keeps it).
+        key={remembered ?? "none"}
+        id="email"
+        label="Adresse e-mail"
+        type="email"
+        autoComplete={scope === "admin" ? "username" : "email"}
+        inputMode="email"
+        required
+        maxLength={254}
+        defaultValue={remembered ?? undefined}
+      />
+      {remembered && (
+        <p className="-mt-2 text-sm">
+          <button type="button" onClick={forgetAdminEmail} disabled={pending} className="font-bold text-link hover:underline">
+            Utiliser une autre adresse
+          </button>
+        </p>
+      )}
+      <PasswordField
+        id="password"
+        label="Mot de passe"
+        autoComplete="current-password"
+        required
+        maxLength={128}
+        autoFocus={!!remembered}
+      />
       {scope === "customer" && (
         <p className="text-sm">
           <Link href="/mot-de-passe-oublie" className="font-bold text-link hover:underline">
