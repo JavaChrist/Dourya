@@ -4,6 +4,7 @@ import { formatPrice } from "@/lib/format";
 import { minPrice, productPageState } from "@/lib/catalog/visibility";
 import { productVisuals } from "@/lib/catalog/visuals";
 import { DemoBadge } from "@/components/ui/DemoBadge";
+import { DraftBadge } from "@/components/ui/DraftBadge";
 import { SlideVisual } from "@/components/ui/SlideVisual";
 
 /** Product tile used by the shop, category and collection listings. */
@@ -28,6 +29,7 @@ export function ProductCard({ product }: { product: Product }) {
           {product.name}
         </span>
         {product.isDemo && <DemoBadge />}
+        {product.status === "draft" && <DraftBadge />}
       </div>
       <span className="text-sm text-ink-muted">
         {price !== null && prices.size > 1 ? `Dès ${formatPrice(price)}` : formatPrice(price)}

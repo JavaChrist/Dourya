@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { Sparkles } from "lucide-react";
-import { getCollection, getListedProducts, getVisibleCategories, getVisibleCollections } from "@/lib/catalog";
+import { getCollection, getShownProducts, getVisibleCategories, getVisibleCollections } from "@/lib/catalog";
 import { parseShopParams } from "@/lib/catalog/query";
 import { DemoBadge } from "@/components/ui/DemoBadge";
 import { ListingFallback, ListingHero } from "@/components/catalog/ListingHero";
@@ -28,7 +28,7 @@ async function CollectionContent({ params, searchParams }: PageProps<"/collectio
   if (!collection) notFound();
   const [query, products, categories] = await Promise.all([
     searchParams.then(parseShopParams),
-    getListedProducts(),
+    getShownProducts(),
     getVisibleCategories(),
   ]);
 

@@ -4,16 +4,17 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Archive, Info, Truck } from "lucide-react";
 import { commerceConfig, priceMention } from "@/config/commerce";
-import { getListedProducts, getProductForPage, getVisibleCategories } from "@/lib/catalog";
+import { getShownProducts, getProductForPage, getVisibleCategories } from "@/lib/catalog";
 import { availableStock, productPageState, variantAvailability } from "@/lib/catalog/visibility";
 import { productVisuals } from "@/lib/catalog/visuals";
 import type { Product, ProductVariant } from "@/lib/types";
 import { DemoBadge } from "@/components/ui/DemoBadge";
+import { DraftBadge } from "@/components/ui/DraftBadge";
 import { ProductGallery } from "@/components/catalog/ProductGallery";
 import { AddToCart, type PersonalisationOption, type VariantOption } from "@/components/catalog/AddToCart";
 
 export async function generateStaticParams() {
-  return (await getListedProducts()).map((p) => ({ slug: p.slug }));
+  return (await getShownProducts()).map((p) => ({ slug: p.slug }));
 }
 
 export async function generateMetadata({ params }: PageProps<"/produits/[slug]">): Promise<Metadata> {
@@ -23,6 +24,7 @@ export async function generateMetadata({ params }: PageProps<"/produits/[slug]">
     title: product.seo?.title ?? product.name,
     description: product.seo?.description ?? product.description,
     alternates: { canonical: `/produits/${product.slug}` },
+    ...(product.status === "draft" && { robots: { index: false, follow: false } }),
   };
 }
 
@@ -103,8 +105,16 @@ async function ProductContent({ params }: { params: PageProps<"/produits/[slug]"
         <div className="mt-2 flex flex-wrap items-center gap-3">
           <h1 className="font-display text-4xl font-semibold text-ink">{product.name}</h1>
           {product.isDemo && <DemoBadge />}
+          {product.status === "draft" && <DraftBadge />}
         </div>
-        <p className="mt-3 text-lg text-ink-muted">{product.description}</p>
+        {product.description && <p className="mt-3 text-lg text-ink-muted">{product.description}</p>}
+
+        {product.status === "draft" && (
+          <p className="mt-4 flex gap-2 rounded-md border-2 border-dashed border-ink/40 px-4 py-3 text-sm text-ink" role="note">
+            <Info aria-hidden className="mt-0.5 size-4 shrink-0" />
+            Brouillon visible sur la préversion seulement : prix, stock et regroupement à valider avant publication.
+          </p>
+        )}
 
         {product.isDemo && (
           <p className="mt-4 flex gap-2 rounded-md bg-accent/40 px-4 py-3 text-sm text-ink">

@@ -17,7 +17,8 @@ export function ProductGallery({ slides, name }: { slides: Slide[]; name: string
   const go = (delta: number) => setIndex((i) => (i + delta + slides.length) % slides.length);
 
   return (
-    <div>
+    // min-w-0: a long thumbnail strip scrolls inside the grid column instead of widening the page.
+    <div className="min-w-0">
       <div className="relative aspect-square overflow-hidden rounded-lg shadow-[0_6px_0_rgba(43,18,32,0.14)]">
         <SlideVisual slide={current} sizes="(max-width: 768px) 100vw, 560px" priority />
         <button

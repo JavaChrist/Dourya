@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
-import { getCategory, getListedProducts, getVisibleCategories, getVisibleCollections } from "@/lib/catalog";
+import { getCategory, getShownProducts, getVisibleCategories, getVisibleCollections } from "@/lib/catalog";
 import { parseShopParams } from "@/lib/catalog/query";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
 import { ListingFallback, ListingHero } from "@/components/catalog/ListingHero";
@@ -27,7 +27,7 @@ async function CategoryContent({ params, searchParams }: PageProps<"/categories/
   if (!category) notFound();
   const [query, products, collections] = await Promise.all([
     searchParams.then(parseShopParams),
-    getListedProducts(),
+    getShownProducts(),
     getVisibleCollections(),
   ]);
 

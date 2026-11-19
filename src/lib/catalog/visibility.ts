@@ -18,6 +18,11 @@ export function isListed(product: Product, visibleCategorySlugs: Set<string>): b
   return product.status === "published" && product.categorySlugs.some((s) => visibleCategorySlugs.has(s));
 }
 
+/** Listed, or a draft when the draft preview is on (whatever its category: e.g. Headbands, Mail Club). */
+export function isShown(product: Product, visibleCategorySlugs: Set<string>, draftPreview: boolean): boolean {
+  return isListed(product, visibleCategorySlugs) || (draftPreview && product.status === "draft");
+}
+
 /** Units a customer can take for this variant right now (null = no stock limit). */
 export function availableStock(variant: ProductVariant): number | null {
   if (variant.stockMode === "made_to_order") return null;

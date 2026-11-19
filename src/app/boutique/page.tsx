@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { getListedProducts, getVisibleCategories, getVisibleCollections } from "@/lib/catalog";
+import { getShownProducts, getVisibleCategories, getVisibleCollections } from "@/lib/catalog";
 import { parseShopParams } from "@/lib/catalog/query";
 import { ListingFallback, ListingHero } from "@/components/catalog/ListingHero";
 import { ShopListing } from "@/components/catalog/ShopListing";
@@ -16,7 +16,7 @@ export const metadata: Metadata = {
 async function Listing({ searchParams }: { searchParams: PageProps<"/boutique">["searchParams"] }) {
   const [query, products, categories, collections] = await Promise.all([
     searchParams.then(parseShopParams),
-    getListedProducts(),
+    getShownProducts(),
     getVisibleCategories(),
     getVisibleCollections(),
   ]);
