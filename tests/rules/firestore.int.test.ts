@@ -111,6 +111,23 @@ describe("firestore.rules: server-only collections", () => {
     await assertFails(setDoc(doc(as("alice", ALICE), "emailSuppressions/h2"), { reason: "unsubscribe" }));
   });
 
+  it("lot 4 collections are closed to visitors, customers and admins (server only)", async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, "orders/o-alice/events/e1"), { type: "created" });
+      await setDoc(doc(db, "inventory/p1__v1"), { stock: 1, reserved: 0 });
+      await setDoc(doc(db, "checkoutAttempts/attempt-key-000001"), { orderId: "o-alice" });
+      await setDoc(doc(db, "settings/shipping"), { rates: [] });
+    });
+    const visitor = env.unauthenticatedContext().firestore();
+    for (const path of ["orders/o-alice/events/e1", "inventory/p1__v1", "checkoutAttempts/attempt-key-000001", "settings/shipping"]) {
+      for (const db of [visitor, as("alice", ALICE), as("admin", ADMIN)]) {
+        await assertFails(getDoc(doc(db, path)));
+        await assertFails(setDoc(doc(db, path), { a: 1 }));
+      }
+    }
+  });
+
   it("an unknown collection is closed", async () => {
     await assertFails(getDoc(doc(as("admin", ADMIN), "anything/x")));
     await assertFails(setDoc(doc(as("alice", ALICE), "anything/x"), { a: 1 }));

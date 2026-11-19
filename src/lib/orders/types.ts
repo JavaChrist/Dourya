@@ -68,6 +68,16 @@ export type DeliveryProof =
   | { kind: "tracking" }
   | { kind: "manual_confirmation"; adminUid: string };
 
+/** Units held for one stock counter (a stocked variant or a personalisation quota). */
+export type StockHold = {
+  /** inventory document id, e.g. "prod-1__v-a4" or "prod-1__personalisation". */
+  key: string;
+  quantity: number;
+};
+
+/** held = reserved while the payment is awaited; committed = sold; released = given back. */
+export type StockState = "held" | "committed" | "released";
+
 export type OrderRecord = {
   id: string;
   /** null = guest checkout. */
@@ -85,7 +95,9 @@ export type OrderRecord = {
   molliePaymentId?: string;
   refundedCents: number;
   tracking?: TrackingInfo;
-  /** Stock is held until this date while the payment is awaited. */
+  stockHolds: StockHold[];
+  stockState: StockState;
+  /** Stock is held at least until this date while the payment is awaited. */
   reservationExpiresAt?: string;
   /** Set when an event needs a human check (late payment, amount mismatch...). */
   needsReview?: string;
