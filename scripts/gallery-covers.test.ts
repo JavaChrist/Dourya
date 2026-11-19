@@ -25,6 +25,22 @@ describe("applyCovers (galeries.json)", () => {
     ]);
   });
 
+  it("takes the most precise entry: sticker-nokio is not the nokio key ring", () => {
+    const nokio = [
+      { slug: "porte-cles-nokio", folder: "NOKIO", rubrique: "PORTECLES", category: "porte-cles", kind: "porte-cles", images: [img(1, "IMG_6772.jpeg")] },
+      { slug: "sticker-nokio", folder: "STICKER NOKIO", rubrique: "STICKERS UNITE", category: "stickers", kind: "sticker", images: [img(1, "IMG_6753.jpeg"), img(2, "IMG_6754.jpeg")] },
+    ];
+    const json = [
+      { folder: "PHOTOS/PORTECLES/NOKIO", slug: "nokio", cover: "a", images: [{ src: "a", source: "PHOTOS/PORTECLES/NOKIO/IMG_6772.jpeg" }] },
+      { folder: "PHOTOS/STICKERS UNITE/STICKER NOKIO", slug: "sticker-nokio", cover: "b", images: [{ src: "b", source: "PHOTOS/STICKERS UNITE/STICKER NOKIO/IMG_6754.jpeg" }] },
+    ];
+    const { report } = applyCovers(nokio, json);
+    expect(report).toEqual([
+      { slug: "porte-cles-nokio", status: "already-first", detail: "IMG_6772.jpeg" },
+      { slug: "sticker-nokio", status: "ok", detail: "IMG_6754.jpeg" },
+    ]);
+  });
+
   it("reports a cover with no matching src or an unknown source, and keeps the order", () => {
     const json = [
       { name: "Twilight", cover: "x.jpg", images: [{ src: "y.jpg", source: "IMG_6795.jpeg" }] },

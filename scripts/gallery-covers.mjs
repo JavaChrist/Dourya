@@ -32,10 +32,15 @@ function listGalleries(json) {
 
 /** Every name a gallery entry may go by, as slugs (slug, id, folder, name...). */
 function keysOf(g) {
-  return ["slug", "id", "key", "folder", "dossier", "name", "nom", "title", "titre"]
+  const keys = ["slug", "id", "key", "folder", "dossier", "name", "nom", "title", "titre"]
     .map((k) => g?.[k])
-    .filter((v) => typeof v === "string" && v.trim())
-    .map(slugify);
+    .filter((v) => typeof v === "string" && v.trim());
+  // A folder path "PHOTOS/STICKERS UNITE/STICKER NOKIO" also goes by "STICKERS UNITE/STICKER NOKIO".
+  for (const k of ["folder", "dossier"]) {
+    const v = typeof g?.[k] === "string" ? g[k].replace(/\\/g, "/") : "";
+    if (v.includes("/")) keys.push(v.replace(/^PHOTOS\//i, ""));
+  }
+  return keys.map(slugify);
 }
 
 /**
@@ -46,8 +51,19 @@ export function applyCovers(galleries, json) {
   const entries = listGalleries(json);
   const report = [];
   const result = galleries.map((gallery) => {
-    const names = new Set([gallery.slug, slugify(gallery.folder), gallery.slug.replace(/^[a-z]+-/, "")]);
-    const entry = entries.find((e) => keysOf(e).some((k) => names.has(k)));
+    // Most precise name first: "sticker-nokio" must not take the "nokio" key ring's entry.
+    const names = [
+      gallery.rubrique ? slugify(`${gallery.rubrique}/${gallery.folder}`) : null,
+      gallery.slug,
+      slugify(gallery.folder),
+      gallery.slug.replace(/^[a-z]+-/, ""),
+    ].filter(Boolean);
+    const keyed = entries.map((e) => ({ e, keys: keysOf(e) }));
+    let entry;
+    for (const name of names) {
+      entry = keyed.find(({ keys }) => keys.includes(name))?.e;
+      if (entry) break;
+    }
     const miss = (detail) => (report.push({ slug: gallery.slug, status: "missing", detail }), gallery);
     if (!entry) return miss("galerie absente de galeries.json");
     if (!entry.cover) return miss("pas de champ cover");

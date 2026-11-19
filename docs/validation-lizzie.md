@@ -24,15 +24,23 @@ Préversion : https://dourya-git-stripe-test-javachrist-projects.vercel.app/bout
 
 ## 2. Photos principales
 
-`galeries.json` n'a pas été trouvé à côté du dossier `PHOTOS`. La photo principale
-reste donc la **première photo par nom de fichier**. Dès que le fichier est là :
+Photos principales reprises de `galeries.json` : 29 couvertures trouvées sur 29,
+aucune correspondance manquante. Quatre galeries changent de photo principale :
 
-    node scripts/gallery-covers.mjs "C:\Users\JavaChrist\Desktop\DOURYA-photos-produits\galeries.json"
+| Fiche | Nouvelle photo principale |
+|---|---|
+| Headband 1 | IMG_6862 |
+| Headband 2 | IMG_6863 |
+| Blindbox LaLa | IMG_6735 |
+| Blindbox Chaton mystère | IMG_6817 |
 
-Pour chaque galerie, le script prend l'image dont `src` vaut `cover`, retrouve son
-fichier d'origine (`source`) parmi les photos importées, la place en tête et liste
-les correspondances manquantes. Attention : relancer l'import des photos remet
-l'ordre par nom de fichier ; il faut alors relancer ce script.
+Pour les 25 autres, la couverture proposée était déjà la première photo. Le pack
+complet de prints Twilight reprend la couverture du print Twilight (IMG_6793).
+
+Pour réappliquer (par exemple après un nouvel import des photos, qui remet l'ordre
+par nom de fichier) :
+
+    node scripts/gallery-covers.mjs "C:\Users\JavaChrist\Desktop\galeries.json"
 
 ## 3. Décisions à prendre avec Lizzie
 
