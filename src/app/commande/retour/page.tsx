@@ -32,7 +32,7 @@ async function ReturnContent({ searchParams }: { searchParams: Promise<Record<st
   return (
     <div className="mt-8 rounded-lg bg-white p-6 ring-1 ring-secondary/30 sm:p-8" role="status">
       {state === "paid" && <ClearCartOnPaid />}
-      <Icon aria-hidden className="size-10 text-pink-strong" />
+      <Icon aria-hidden className={`size-10 ${state === "paid" ? "text-success" : "text-pink-strong"}`} />
       <h2 className="mt-3 font-display text-3xl font-semibold text-ink">{view.title}</h2>
       <p className="mt-2 text-ink">{view.text}</p>
       {orderId && state !== "unknown" && <p className="mt-3 text-sm text-ink-muted">Référence de commande : {orderId}</p>}

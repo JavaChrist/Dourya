@@ -48,7 +48,7 @@ export function SubmitButton({ pending, children, pendingLabel = "Patientez…" 
 
 const tones = {
   error: { icon: AlertTriangle, className: "bg-white ring-2 ring-pink-strong/60", iconClass: "text-pink-strong" },
-  success: { icon: CheckCircle2, className: "bg-surface-muted", iconClass: "text-pink-strong" },
+  success: { icon: CheckCircle2, className: "bg-surface-muted", iconClass: "text-success" },
   info: { icon: Info, className: "bg-accent/40", iconClass: "text-ink" },
 } as const;
 

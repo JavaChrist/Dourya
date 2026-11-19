@@ -44,7 +44,7 @@ export function PublishPanel({ productId, slug, status, missing }: { productId: 
 
       {ready ? (
         <p className="flex items-center gap-2 font-semibold text-ink">
-          <CheckCircle2 aria-hidden className="size-5 text-pink-strong" />
+          <CheckCircle2 aria-hidden className="size-5 text-success" />
           Prêt à publier
         </p>
       ) : (

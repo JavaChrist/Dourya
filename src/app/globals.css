@@ -63,6 +63,8 @@
   --color-on-primary: var(--dy-color-text-on-primary);
   --color-link: var(--dy-color-link);
   --color-pink-strong: var(--brand-pink-strong);
+  /* Validation (succès, fiche prête) : vert foncé, lisible sur les fonds clairs. */
+  --color-success: #15803d;
   --color-button: var(--dy-color-button-bg);
   --color-button-ink: var(--dy-color-button-text);
   --color-button-alt: var(--dy-color-button-alt-bg);
