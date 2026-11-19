@@ -13,9 +13,9 @@ const iconButton =
   "flex size-11 items-center justify-center rounded-full text-white transition hover:bg-white/15";
 
 /**
- * `nav`: desktop header (limited number of rubriques); `menuNav`: the menu
- * (all of them). The menu button shows on desktop too when some rubriques do
- * not fit in the header.
+ * `nav`: desktop header (Boutique and Mail Club, see HEADER_CATEGORY_LIMIT);
+ * `menuNav`: the menu with every rubrique. The menu button shows on desktop
+ * too as soon as the menu holds more links than the header.
  */
 type HeaderProps = { nav: NavItem[]; menuNav: NavItem[]; searchEntries: SearchEntry[] };
 
@@ -53,11 +53,11 @@ function HeaderView({ nav, menuNav, searchEntries, pathname }: HeaderProps & { p
   return (
     <header className="sticky top-0 z-40 bg-primary shadow-[0_2px_0_rgba(43,18,32,0.12)]">
       <div className="mx-auto flex h-16 max-w-6xl items-center gap-2 px-2 sm:px-4 lg:h-20 lg:gap-6 lg:px-6">
-        {/* Menu button: mobile, and desktop when the header cannot show every rubrique */}
+        {/* Menu button: mobile, and desktop when the menu holds the rubriques */}
         <button
           type="button"
           className={`${iconButton} ${moreInMenu ? "" : "lg:hidden"}`}
-          aria-label={moreInMenu ? "Ouvrir le menu (toutes les rubriques)" : "Ouvrir le menu"}
+          aria-label={moreInMenu ? "Ouvrir le menu (rubriques)" : "Ouvrir le menu"}
           aria-haspopup="dialog"
           onClick={() => menuRef.current?.showModal()}
         >

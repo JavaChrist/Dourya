@@ -61,8 +61,11 @@ export const site = {
   contactEmail: "",
 };
 
-/** Rubriques shown in the desktop header; the others stay in the mobile menu and the footer. */
-export const HEADER_CATEGORY_LIMIT = 4;
+/**
+ * Rubriques shown in the desktop header: none. The header keeps « Boutique »
+ * and « Mail Club »; every rubrique is in the menu (hamburger) and the footer.
+ */
+export const HEADER_CATEGORY_LIMIT = 0;
 
 /**
  * Main navigation: "Boutique", then the visible rubriques (already sorted by

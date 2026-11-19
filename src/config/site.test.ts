@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Category } from "@/lib/types";
-import { buildNav, parseSiteUrl, resolveSiteUrl } from "./site";
+import { buildNav, HEADER_CATEGORY_LIMIT, parseSiteUrl, resolveSiteUrl } from "./site";
 
 const cat = (slug: string, name: string, visible = true) => ({ id: slug, slug, name, visible }) as Category;
 
@@ -21,6 +21,10 @@ describe("buildNav", () => {
 
   it("caps the rubriques for the desktop header", () => {
     expect(buildNav(categories, 4).map((i) => i.label)).toEqual(["Boutique", "Prints", "Stickers", "Porte-clés", "Headbands", "Mail Club"]);
+  });
+
+  it("keeps only Boutique and Mail Club in the desktop header (rubriques in the menu)", () => {
+    expect(buildNav(categories, HEADER_CATEGORY_LIMIT).map((i) => i.label)).toEqual(["Boutique", "Mail Club"]);
   });
 });
 
