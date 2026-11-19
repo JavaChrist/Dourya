@@ -21,7 +21,7 @@ export function toStoredProductDoc(p: Product, now: string) {
     categorySlugs: p.categorySlugs,
     collectionSlugs: p.collectionSlugs,
     images: p.images.map((i) => ({ src: i.src, alt: i.alt, width: i.width, height: i.height, ...(i.storagePath ? { storagePath: i.storagePath } : {}) })),
-    variants: p.variants.map((v) => ({ id: v.id, sku: v.sku, name: v.name, priceCents: v.priceCents, stockMode: v.stockMode, stock: v.stock ?? null, active: v.active })),
+    variants: p.variants.map((v) => ({ id: v.id, sku: v.sku, name: v.name, priceCents: v.priceCents, stockMode: v.stockMode, stock: v.stock ?? null, active: v.active, ...(v.imageSrc ? { imageSrc: v.imageSrc } : {}) })),
     createdAt: p.createdAt || now,
     updatedAt: now,
   };

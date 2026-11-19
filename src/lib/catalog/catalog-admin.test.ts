@@ -3,11 +3,11 @@ import { realProducts } from "@/data/real-products";
 import type { Product } from "@/lib/types";
 import { firestoreDatabaseId, isTestPreviewCheckout } from "@/lib/checkout/test-preview";
 import { commerceConfig } from "@/config/commerce";
-import { catalogAdminState, catalogBucket, catalogStoreMerged, draftPhotoPath, isDraftPhotoUrl, PHOTO_FILE_PATTERN, PRODUCT_ID_PATTERN } from "./admin-gate";
+import { catalogAdminState, catalogBucket, catalogCategoriesMerged, catalogStoreMerged, draftPhotoPath, isDraftPhotoUrl, PHOTO_FILE_PATTERN, PRODUCT_ID_PATTERN } from "./admin-gate";
 import { fixtures } from "./fixtures";
 import { planImport, PUBLIC_PHOTO_PREFIX, toStoredProductDoc } from "./import-plan";
-import { mergeCategories, mergeProducts } from "./merge";
-import { parseEuros, parseStoredProduct, slugify, sniffImage, validateCategoryForm, validateProductForm } from "./stored-schema";
+import { addStoredCategories, mergeCategories, mergeProducts } from "./merge";
+import { linkVariantImages, parseEuros, parseStoredProduct, slugify, sniffImage, validateCategoryForm, validateProductForm } from "./stored-schema";
 import { isListed } from "./visibility";
 
 const preview = { VERCEL_ENV: "preview", VERCEL_GIT_COMMIT_REF: "stripe-test", FIRESTORE_DATABASE_ID: "dourya-test", FIREBASE_ADMIN_PROJECT_ID: "dourya-shop" };
@@ -23,6 +23,11 @@ describe("catalogue admin gate", () => {
     expect(catalogStoreMerged(production)).toBe(false);
     expect(catalogStoreMerged(preview)).toBe(true);
     expect(catalogStoreMerged({})).toBe(false);
+    // ...but its new visible rubriques are shown there (filters, category page, home, sitemap).
+    expect(catalogCategoriesMerged(production)).toBe(true);
+    expect(catalogCategoriesMerged(preview)).toBe(true);
+    expect(catalogCategoriesMerged({})).toBe(false);
+    expect(catalogCategoriesMerged({ VERCEL_ENV: "preview", VERCEL_GIT_COMMIT_REF: "main" })).toBe(false);
     // Payment stays closed on dourya.fr.
     expect(commerceConfig.checkoutEnabled).toBe(false);
     expect(isTestPreviewCheckout({ ...production, CHECKOUT_ENABLED: "true" }, "test")).toBe(false);
@@ -98,6 +103,63 @@ function form(entries: Record<string, string | string[]>): FormData {
   return f;
 }
 
+describe("rubriques on dourya.fr", () => {
+  const base = fixtures.categories[0];
+  it("adds new visible rubriques, even empty, after the fixtures", () => {
+    const merged = addStoredCategories(fixtures.categories, [
+      { ...base, id: "cat-bijoux", slug: "bijoux", name: "Bijoux", visible: true },
+      { ...base, id: "cat-cachee", slug: "cachee", name: "Cachée", visible: false },
+    ]);
+    expect(merged.slice(0, fixtures.categories.length)).toEqual(fixtures.categories);
+    expect(merged.map((c) => c.slug)).toContain("bijoux");
+    expect(merged.some((c) => c.slug === "cachee")).toBe(false);
+  });
+
+  it("never replaces, hides or renames a fixture rubrique", () => {
+    const merged = addStoredCategories(fixtures.categories, [
+      { ...base, visible: false, name: "Renommée" },
+      { ...base, id: "cat-copie", slug: base.slug, visible: true },
+      { ...base, id: "cat-a", slug: "double", visible: true },
+      { ...base, id: "cat-b", slug: "double", visible: true },
+    ]);
+    expect(merged.find((c) => c.id === base.id)).toBe(base);
+    expect(merged.some((c) => c.id === "cat-copie")).toBe(false);
+    expect(merged.filter((c) => c.slug === "double").map((c) => c.id)).toEqual(["cat-a"]);
+  });
+});
+
+describe("one photo per model", () => {
+  const p = realProducts.find((x) => x.images.length >= 2)!;
+  const variant = { id: "m1", sku: "PC-M1", attributes: [] as Product["variants"][number]["attributes"], name: "Modèle 1", priceCents: 595, stockMode: "made_to_order" as const, active: true };
+
+  it("keeps a photo of the product and drops an unknown one", () => {
+    const linked = linkVariantImages([{ ...variant, imageSrc: p.images[1].src }, { ...variant, id: "m2", imageSrc: "/images/products/autre/01.webp" }], p.images);
+    expect(linked[0].imageSrc).toBe(p.images[1].src);
+    expect(linked[1]).not.toHaveProperty("imageSrc");
+  });
+
+  it("round-trips the model photo through the stored document", () => {
+    const withModels: Product = { ...p, variants: [{ ...variant, imageSrc: p.images[0].src }, { ...variant, id: "m2", name: "Modèle 2", imageSrc: p.images[1].src }] };
+    const back = parseStoredProduct(p.id, toStoredProductDoc(withModels, "2026-11-19T00:00:00.000Z"))!;
+    expect(back.variants.map((v) => v.imageSrc)).toEqual([p.images[0].src, p.images[1].src]);
+    // A tampered document pointing elsewhere loses the link.
+    const doc = toStoredProductDoc(withModels, "2026-11-19T00:00:00.000Z") as Record<string, unknown>;
+    const tampered = { ...doc, variants: (doc.variants as Record<string, unknown>[]).map((v) => ({ ...v, imageSrc: "//evil.example/x.webp" })) };
+    expect(parseStoredProduct(p.id, tampered)!.variants.every((v) => !v.imageSrc)).toBe(true);
+  });
+
+  it("reads the model photo from the admin form", () => {
+    const known = new Set(["porte-cles"]);
+    const f = { name: "Porte-clés", categorySlugs: "porte-cles", variantCount: "2", "variant.0.name": "Modèle 1", "variant.0.price": "5,95", "variant.0.stockMode": "made_to_order", "variant.0.active": "on", "variant.0.image": p.images[0].src, "variant.1.name": "Modèle 2", "variant.1.price": "5,95", "variant.1.stockMode": "made_to_order", "variant.1.active": "on", "variant.1.image": "" };
+    const ok = validateProductForm(form(f), known);
+    expect(ok.ok).toBe(true);
+    if (ok.ok) expect(ok.value.variants.map((v) => v.imageSrc)).toEqual([p.images[0].src, null]);
+    const bad = validateProductForm(form({ ...f, "variant.1.image": "javascript:alert(1)" }), known);
+    expect(bad.ok).toBe(false);
+    if (!bad.ok) expect(bad.errors["variant.1.image"]).toBe("Photo introuvable.");
+  });
+});
+
 describe("admin forms", () => {
   it("validates a category", () => {
     const ok = validateCategoryForm(form({ name: "Bijoux d'été", icon: "sparkles", order: "50", visible: "on" }));
@@ -114,7 +176,7 @@ describe("admin forms", () => {
     expect(ok.ok).toBe(true);
     if (ok.ok) {
       expect(ok.value.status).toBe("draft");
-      expect(ok.value.variants).toEqual([{ id: "a-l-unite", name: "À l'unité", priceCents: 195, stockMode: "stocked", stock: 3, active: true }]);
+      expect(ok.value.variants).toEqual([{ id: "a-l-unite", name: "À l'unité", priceCents: 195, stockMode: "stocked", stock: 3, active: true, imageSrc: null }]);
     }
     expect(validateProductForm(form({ ...base, status: "published" }), known).ok).toBe(false);
     expect(validateProductForm(form({ ...base, categorySlugs: "inconnue" }), known).ok).toBe(false);

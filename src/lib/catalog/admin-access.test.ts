@@ -5,7 +5,7 @@ import type { Category, Product } from "@/lib/types";
  * Access to the catalogue admin on dourya.fr (VERCEL_ENV=production):
  * customers and visitors never reach the admin pages, the actions or the
  * private draft photos; publishing stays refused; the public shop, cart and
- * sitemap never show working rubriques or drafts.
+ * sitemap show the new visible rubriques (even empty) but never the drafts.
  * Firebase, the session and Next are mocked: no network, no real account.
  */
 const session = vi.hoisted(() => ({ state: { status: "none" } as { status: string; user?: { uid: string; role: string } } }));
@@ -20,7 +20,7 @@ vi.mock("next/navigation", () => ({
   notFound: () => { throw new Error("NEXT_NOT_FOUND"); },
   redirect: (to: string) => { throw new Error(`NEXT_REDIRECT ${to}`); },
 }));
-vi.mock("next/cache", () => ({ updateTag: vi.fn(), refresh: vi.fn() }));
+vi.mock("next/cache", () => ({ updateTag: vi.fn(), refresh: vi.fn(), cacheTag: vi.fn(), cacheLife: vi.fn() }));
 vi.mock("@/lib/firebase/admin-auth", () => ({ adminAuth: () => ({}) }));
 vi.mock("@/lib/auth/session-core", () => ({ resolveSession: async () => session.state }));
 vi.mock("@/lib/log", () => ({ logEvent: vi.fn(), errorCode: () => "unknown" }));
@@ -105,20 +105,23 @@ describe("admin pages and actions on dourya.fr", () => {
 describe("public shop of dourya.fr", () => {
   const working: Category = { id: "c-travail", slug: "rubrique-de-travail", name: "Rubrique de travail", description: "", icon: "sparkles", visible: true, order: 1 } as Category;
 
-  it("never reads nor shows the stored rubriques and drafts (shop, cart, sitemap)", async () => {
+  it("shows the new visible rubriques but never the stored products (shop, cart, sitemap)", async () => {
     const { realProducts } = await import("@/data/real-products");
     const draft = { ...realProducts[0], status: "published", categorySlugs: ["rubrique-de-travail"] } as unknown as Product;
-    stored.cachedStoredCatalog.mockResolvedValue({ categories: [working], products: [draft] });
+    const hidden = { ...working, id: "c-cachee", slug: "rubrique-cachee", visible: false } as Category;
+    stored.cachedStoredCatalog.mockResolvedValue({ categories: [working, hidden], products: [draft] });
     const catalog = await import("@/lib/catalog");
     const categories = await catalog.getVisibleCategories();
     const listed = await catalog.getListedProducts();
     const shown = await catalog.getShownProducts();
     const { default: sitemap } = await import("@/app/sitemap");
     const urls = (await sitemap()).map((e) => e.url);
-    expect(stored.cachedStoredCatalog).not.toHaveBeenCalled();
-    expect(categories.some((c) => c.slug === working.slug)).toBe(false);
+    expect(categories.some((c) => c.slug === working.slug)).toBe(true);
+    expect(categories.some((c) => c.slug === hidden.slug)).toBe(false);
+    expect(await catalog.getCategory(working.slug)).toBeDefined();
     expect([...listed, ...shown].some((p) => p.id === draft.id || p.status === "draft")).toBe(false);
-    expect(urls.some((u) => u.includes("rubrique-de-travail") || u.includes(draft.slug))).toBe(false);
+    expect(urls.some((u) => u.endsWith("/categories/rubrique-de-travail"))).toBe(true);
+    expect(urls.some((u) => u.includes("rubrique-cachee") || u.includes(`/produits/${draft.slug}`))).toBe(false);
     expect(await catalog.getProductForPage(draft.slug)).toBeUndefined();
   });
 });

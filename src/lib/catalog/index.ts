@@ -1,9 +1,9 @@
 import type { Category, Collection, Product } from "@/lib/types";
-import { catalogStoreMerged } from "./admin-gate";
+import { catalogCategoriesMerged, catalogStoreMerged } from "./admin-gate";
 import { isDraftPreview } from "./draft-preview";
 import { createFixtureRepository } from "./fixture-repository";
 import { fixtures } from "./fixtures";
-import { mergeCategories, mergeProducts } from "./merge";
+import { addStoredCategories, mergeCategories, mergeProducts } from "./merge";
 import type { CatalogRepository } from "./repository";
 import { isListed, isShown, visibleCategories, visibleCollections } from "./visibility";
 
@@ -13,18 +13,30 @@ import { isListed, isShown, visibleCategories, visibleCollections } from "./visi
  * Fixtures (src/data) everywhere. On the stripe-test preview only (database
  * `dourya-test`, catalogStoreMerged in admin-gate.ts), the records written by
  * the catalogue admin are merged on top (merge.ts: demo products stay
- * untouched, stored products are always drafts). dourya.fr never merges
- * them: the admin there works on its own records (admin-repository.ts), the
- * public shop, cart and sitemap keep the fixtures.
+ * untouched, stored products are always drafts). On dourya.fr only the NEW
+ * visible rubriques are added (addStoredCategories, catalogCategoriesMerged):
+ * the stored products are never merged there, the public shop, cart and
+ * sitemap keep the fixture products.
  *
  * Fixture-only repository (kept for the tests and as the fallback). */
 export const repository: CatalogRepository = createFixtureRepository(fixtures);
 
+/** Loaded once, on demand: server-only, and the fixture path stays importable by the unit tests. */
+let storedModule: Promise<typeof import("./stored-catalog")> | undefined;
+const loadStored = () =>
+  (storedModule ??= import("./stored-catalog").catch((error: unknown) => {
+    storedModule = undefined;
+    throw error;
+  }));
+
 async function currentRepository(): Promise<CatalogRepository> {
-  if (!catalogStoreMerged(process.env)) return repository;
+  const full = catalogStoreMerged(process.env);
+  if (!full && !catalogCategoriesMerged(process.env)) return repository;
   try {
-    const { cachedStoredCatalog } = await import("./stored-catalog");
+    const { cachedStoredCatalog } = await loadStored();
     const stored = await cachedStoredCatalog();
+    // dourya.fr: new visible rubriques only, the products stay the fixtures.
+    if (!full) return createFixtureRepository({ ...fixtures, categories: addStoredCategories(fixtures.categories, stored.categories) });
     return createFixtureRepository({
       categories: mergeCategories(fixtures.categories, stored.categories),
       collections: fixtures.collections,

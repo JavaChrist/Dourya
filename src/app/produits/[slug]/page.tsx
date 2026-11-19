@@ -12,6 +12,7 @@ import { DemoBadge } from "@/components/ui/DemoBadge";
 import { DraftBadge } from "@/components/ui/DraftBadge";
 import { ProductGallery } from "@/components/catalog/ProductGallery";
 import { AddToCart, type PersonalisationOption, type VariantOption } from "@/components/catalog/AddToCart";
+import { ModelSelectionProvider } from "@/components/catalog/ModelSelection";
 
 export async function generateStaticParams() {
   return (await getShownProducts()).map((p) => ({ slug: p.slug }));
@@ -58,6 +59,8 @@ function variantOptions(product: Product): VariantOption[] {
         note: product.status === "draft" && stockToValidate(v) ? "Stock à valider" : availabilityNote(v),
         purchasable: product.status === "published" && (a.kind === "made_to_order" || a.kind === "in_stock"),
         maxQuantity: Math.min(cap, availableStock(v) ?? Infinity),
+        ...(v.imageSrc && product.images.some((i) => i.src === v.imageSrc) ? { imageSrc: v.imageSrc } : {}),
+        soldOut: a.kind === "out_of_stock",
       };
     });
 }
@@ -87,6 +90,7 @@ async function ProductContent({ params }: { params: PageProps<"/produits/[slug]"
   const mention = priceMention();
 
   return (
+    <ModelSelectionProvider>
     <div className="mx-auto grid max-w-6xl gap-8 px-4 py-8 sm:px-6 sm:py-10 md:grid-cols-2 lg:gap-12">
       <ProductGallery slides={productVisuals(product)} name={product.name} />
       <div>
@@ -149,6 +153,7 @@ async function ProductContent({ params }: { params: PageProps<"/produits/[slug]"
         </div>
       </div>
     </div>
+    </ModelSelectionProvider>
   );
 }
 

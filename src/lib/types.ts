@@ -130,6 +130,8 @@ export type ProductVariant = {
   lowStockThreshold?: number;
   /** Manual switch to hide a variant without deleting it. */
   active: boolean;
+  /** Photo of this model: the src of one of the product images. Shown when the customer picks it. */
+  imageSrc?: string;
 };
 
 /**

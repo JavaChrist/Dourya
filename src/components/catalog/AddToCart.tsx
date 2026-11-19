@@ -1,11 +1,14 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { Check, Minus, Plus, ShoppingBag } from "lucide-react";
 import { useEffect, useId, useState } from "react";
 import { formatPrice } from "@/lib/format";
 import { PERSONALISATION_PATTERN, normalizePersonalisation } from "@/lib/cart/items";
 import { useCart } from "@/components/cart/CartProvider";
+import { isDraftPhotoUrl } from "@/lib/catalog/draft-photo-url";
+import { useModelSelection } from "./ModelSelection";
 
 export type VariantOption = {
   id: string;
@@ -16,6 +19,10 @@ export type VariantOption = {
   purchasable: boolean;
   /** Highest quantity for one line (stock and per-line cap). */
   maxQuantity: number;
+  /** Photo of this model (one of the product images), shown as its thumbnail and in the gallery when picked. */
+  imageSrc?: string;
+  /** Out of stock: greyed with « Épuisé ». */
+  soldOut?: boolean;
 };
 
 export type PersonalisationOption = {
@@ -53,8 +60,12 @@ export function AddToCart({
 }) {
   const id = useId();
   const { add } = useCart();
-  const firstAvailable = variants.find((v) => v.purchasable) ?? variants[0];
-  const [variantId, setVariantId] = useState(firstAvailable?.id);
+  const selection = useModelSelection();
+  // Several models or options: the customer must pick one, nothing is pre-selected.
+  const choose = variants.length > 1;
+  const models = variants.some((v) => v.imageSrc);
+  const noun = models ? "modèle" : "option";
+  const [variantId, setVariantId] = useState<string | undefined>(choose ? undefined : variants[0]?.id);
   const [quantity, setQuantity] = useState(1);
   const [text, setText] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -66,13 +77,13 @@ export function AddToCart({
     setWindowOpen(!!personalisation && inWindow(personalisation, new Date()));
   }, [personalisation]);
 
-  const variant = variants.find((v) => v.id === variantId) ?? firstAvailable;
-  if (!variant) return null;
+  if (variants.length === 0) return null;
+  const variant = choose ? variants.find((v) => v.id === variantId) : variants[0];
 
-  const persoOpen = !!personalisation && windowOpen && (!personalisation.variantIds?.length || personalisation.variantIds.includes(variant.id));
+  const persoOpen = !!variant && !!personalisation && windowOpen && (!personalisation.variantIds?.length || personalisation.variantIds.includes(variant.id));
   const persoText = persoOpen ? normalizePersonalisation(text) : undefined;
-  const unit = variant.priceCents === null ? null : variant.priceCents + (persoText ? personalisation!.surchargeCents : 0);
-  const max = Math.max(1, variant.maxQuantity);
+  const unit = !variant || variant.priceCents === null ? null : variant.priceCents + (persoText ? personalisation!.surchargeCents : 0);
+  const max = Math.max(1, variant?.maxQuantity ?? 1);
 
   function submit() {
     setAdded(null);
@@ -90,7 +101,7 @@ export function AddToCart({
     setError(null);
     add({ productId, variantId: variant.id, personalisation: persoText }, Math.min(quantity, max));
     const n = Math.min(quantity, max);
-    const label = variants.length > 1 ? `${productName} (${variant.name})` : productName;
+    const label = choose ? `${productName} (${variant.name})` : productName;
     setAdded(`${n} × ${label} ajouté${n > 1 ? "s" : ""} au panier.`);
   }
 
@@ -102,15 +113,15 @@ export function AddToCart({
         submit();
       }}
     >
-      {variants.length > 1 && (
+      {choose && (
         <fieldset>
-          <legend className="font-display text-xl font-semibold text-pink-strong">Options</legend>
+          <legend className="font-display text-xl font-semibold text-pink-strong">{models ? "Choisissez votre modèle" : "Choisissez une option"}</legend>
           <div className="mt-2 grid gap-2 sm:grid-cols-2">
             {variants.map((v) => (
               <label
                 key={v.id}
                 className={`flex min-h-11 cursor-pointer items-center justify-between gap-3 rounded-md border-2 px-4 py-2.5 transition has-[:checked]:border-primary has-[:checked]:bg-primary/5 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-ink ${
-                  v.purchasable ? "border-secondary/40 bg-white" : "border-dashed border-secondary/40 bg-surface-muted text-ink-muted"
+                  v.soldOut ? "border-dashed border-secondary/40 bg-surface-muted text-ink-muted" : "border-secondary/40 bg-white"
                 }`}
               >
                 <span className="flex items-center gap-3">
@@ -118,17 +129,23 @@ export function AddToCart({
                     type="radio"
                     name={`${id}-variant`}
                     value={v.id}
-                    checked={v.id === variant.id}
+                    checked={v.id === variant?.id}
                     onChange={() => {
                       setVariantId(v.id);
+                      if (v.imageSrc) selection?.select(v.imageSrc);
                       setQuantity(1);
                       setAdded(null);
                     }}
                     className="size-4 accent-primary"
                   />
+                  {v.imageSrc && (
+                    <span className={`relative block size-14 shrink-0 overflow-hidden rounded-md ${v.soldOut ? "opacity-50 grayscale" : ""}`}>
+                      <Image src={v.imageSrc} alt="" fill sizes="56px" unoptimized={isDraftPhotoUrl(v.imageSrc)} className="object-cover" />
+                    </span>
+                  )}
                   <span>
                     <span className="block font-semibold">{v.name}</span>
-                    {v.note && <span className="block text-xs">{v.note}</span>}
+                    {v.soldOut ? <span className="block text-xs font-bold">Épuisé</span> : v.note && <span className="block text-xs">{v.note}</span>}
                   </span>
                 </span>
                 <span className="text-sm font-bold">{formatPrice(v.priceCents)}</span>
@@ -168,7 +185,7 @@ export function AddToCart({
         </div>
       )}
 
-      {variant.purchasable && (
+      {variant?.purchasable && (
         <div className="flex flex-wrap items-center gap-4">
           <div>
             <span id={`${id}-qty`} className="block text-sm font-bold text-ink">
@@ -191,7 +208,7 @@ export function AddToCart({
       )}
 
       {/* Not for sale (draft, stock to validate, out of stock): still show its price and why. */}
-      {!variant.purchasable && variants.length === 1 && (variant.priceCents !== null || variant.note) && (
+      {variant && !variant.purchasable && !choose && (variant.priceCents !== null || variant.note) && (
         <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
           {variant.priceCents !== null && <p className="font-display text-3xl font-semibold text-ink">{formatPrice(variant.priceCents)}</p>}
           {variant.note && <p className="text-sm font-bold text-ink-muted">{variant.note}</p>}
@@ -200,11 +217,11 @@ export function AddToCart({
 
       <button
         type="submit"
-        disabled={!variant.purchasable}
+        disabled={!variant?.purchasable}
         className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-button px-6 font-display text-lg font-semibold text-button-ink shadow-[0_3px_0_rgba(43,18,32,0.25)] transition hover:brightness-95 disabled:cursor-not-allowed disabled:bg-ink/10 disabled:text-ink/60 disabled:shadow-none"
       >
         <ShoppingBag aria-hidden className="size-5" />
-        {variant.purchasable ? "Ajouter au panier" : variant.priceCents === null ? "Prix à venir" : "Indisponible"}
+        {!variant ? `Choisissez un${models ? "" : "e"} ${noun}` : variant.purchasable ? "Ajouter au panier" : variant.soldOut ? "Épuisé" : variant.priceCents === null ? "Prix à venir" : "Indisponible"}
       </button>
 
       <div role="status" aria-live="polite">

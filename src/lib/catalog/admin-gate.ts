@@ -78,6 +78,14 @@ export function catalogStoreMerged(env: Env): boolean {
   return state.enabled && state.mode === "test";
 }
 
+/**
+ * New visible rubriques of the catalogue admin shown in the shop (filters,
+ * category pages, home grid, sitemap)? Wherever the admin is enabled,
+ * production included. In production only new rubriques are added (merge.ts
+ * addStoredCategories); products stay the fixtures.
+ */
+export const catalogCategoriesMerged = (env: Env): boolean => catalogAdminState(env).enabled;
+
 /** Draft photo ids and file names accepted by the photo route and actions. */
 export const PRODUCT_ID_PATTERN = /^[a-z0-9][a-z0-9-]{1,79}$/;
 export const PHOTO_FILE_PATTERN = /^[a-z0-9]{8,40}\.(webp|jpg)$/;

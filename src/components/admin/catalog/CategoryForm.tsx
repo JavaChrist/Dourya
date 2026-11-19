@@ -46,7 +46,7 @@ export function CategoryForm({ category }: { category?: Category }) {
       </div>
       <label className="flex items-center gap-2 text-ink">
         <input type="checkbox" name="visible" defaultChecked={state.values ? state.values.visible === "on" : (category?.visible ?? true)} className="size-5 accent-pink-strong" />
-        Visible dans la boutique (sur dourya.fr, seulement après l&apos;ouverture de la publication)
+        Visible dans la boutique (filtres, page de la rubrique, accueil et sitemap, dès l&apos;enregistrement)
       </label>
       <SubmitButton pending={pending} pendingLabel="Enregistrement…">
         {category ? "Enregistrer la rubrique" : "Créer la rubrique"}

@@ -8,7 +8,7 @@ import { fixtures } from "./fixtures";
 import { toStoredProductDoc } from "./import-plan";
 import { mergeCategories, mergeProducts } from "./merge";
 import { CATEGORIES_COLLECTION, PRODUCTS_COLLECTION, readStoredCatalog } from "./stored-catalog";
-import { MAX_IMAGES, parseStoredProduct, toVariant, type CategoryInput, type ProductInput } from "./stored-schema";
+import { MAX_IMAGES, linkVariantImages, parseStoredProduct, toVariant, type CategoryInput, type ProductInput } from "./stored-schema";
 
 /**
  * Writes of the catalogue admin (Firestore "(default)" on dourya.fr or `dourya-test` on the preview, + Storage
@@ -86,7 +86,7 @@ export async function saveProduct(input: ProductInput): Promise<Product> {
     categorySlugs: input.categorySlugs,
     collectionSlugs: existing?.collectionSlugs ?? [],
     images: existing?.images ?? [],
-    variants: input.variants.map((v) => toVariant(slug, v)),
+    variants: linkVariantImages(input.variants.map((v) => toVariant(slug, v)), existing?.images ?? []),
     isDemo: false,
     createdAt: existing?.createdAt || now,
     updatedAt: now,

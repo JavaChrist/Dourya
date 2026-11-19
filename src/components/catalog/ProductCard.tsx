@@ -13,6 +13,9 @@ export function ProductCard({ product }: { product: Product }) {
   const price = minPrice(product);
   const prices = new Set(product.variants.filter((v) => v.active && v.priceCents !== null).map((v) => v.priceCents));
   const unavailable = productPageState(product) !== "available";
+  // Pieces sold individually, one photo per model: say how many to choose from.
+  const active = product.variants.filter((v) => v.active);
+  const models = active.length > 1 && active.some((v) => v.imageSrc) ? active.length : 0;
 
   return (
     <Link href={`/produits/${product.slug}`} className="group block rounded-md">
@@ -33,6 +36,7 @@ export function ProductCard({ product }: { product: Product }) {
       </div>
       <span className="text-sm text-ink-muted">
         {price !== null && prices.size > 1 ? `Dès ${formatPrice(price)}` : formatPrice(price)}
+        {models > 0 && ` · ${models} modèles`}
       </span>
     </Link>
   );

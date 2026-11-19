@@ -102,9 +102,9 @@ export function ShopListing({
       {result.items.length === 0 ? (
         <div className="mt-6 flex flex-col items-center rounded-lg border-2 border-dashed border-secondary/50 px-6 py-12 text-center">
           <PackageSearch aria-hidden className="size-10 text-pink-strong" />
-          <p className="mt-3 font-display text-xl font-semibold text-ink">Aucun produit trouvé</p>
+          <p className="mt-3 font-display text-xl font-semibold text-ink">{hasFilters ? "Aucun produit trouvé" : "Bientôt de nouvelles créations"}</p>
           <p className="mt-1 text-ink-muted">
-            {hasFilters ? "Essayez une autre recherche ou retirez des filtres." : "De nouvelles créations arrivent bientôt."}
+            {hasFilters ? "Essayez une autre recherche ou retirez des filtres." : fixed?.category ? "Cette rubrique se remplit : revenez très vite." : "De nouvelles créations arrivent bientôt."}
           </p>
           {hasFilters && (
             <Link href={basePath} className="mt-4 font-bold text-link hover:underline">

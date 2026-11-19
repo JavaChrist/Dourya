@@ -15,7 +15,8 @@ import { allowAction } from "@/lib/security/limit";
  * catalogue admin open here (dourya.fr in mode "production", or the
  * stripe-test preview + dourya-test, see admin-gate.ts), rate limit,
  * validation, write, then the "catalog" cache tag is expired (the preview's
- * shop pages show the change; dourya.fr's public shop never merges it).
+ * shop pages show the change; dourya.fr's public shop shows only its new
+ * visible rubriques, never the stored products).
  */
 const CLOSED: FormState = { status: "error", message: "L'administration du catalogue n'est pas ouverte ici. Rien n'a été enregistré." };
 const RATE_LIMITED: FormState = { status: "error", message: "Trop de modifications d'affilée. Réessayez dans quelques minutes." };

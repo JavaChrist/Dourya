@@ -99,6 +99,7 @@ function PhotoCard({ productId, image, index, count }: { productId: string; imag
       <div className="relative aspect-square overflow-hidden rounded-xl bg-surface-muted">
         <Image src={image.src} alt={image.alt} fill sizes="(min-width: 640px) 220px, 45vw" className="object-cover" unoptimized={isDraftPhotoUrl(image.src)} />
         {index === 0 && <span className="absolute left-2 top-2 rounded-full bg-white/90 px-2 py-0.5 text-xs font-bold text-ink">Couverture</span>}
+        <span className="absolute bottom-2 right-2 rounded-full bg-white/90 px-2 py-0.5 text-xs font-bold text-ink">Photo {index + 1}</span>
       </div>
       <FormMessage state={state} />
       <div className="flex flex-wrap gap-1.5">

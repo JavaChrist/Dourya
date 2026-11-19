@@ -22,6 +22,26 @@ export function mergeCategories(fixtures: Category[], stored: Category[]): Categ
   return [...byId.values()];
 }
 
+/**
+ * Rubriques seen on dourya.fr: the fixture categories, plus the NEW visible
+ * rubriques created in the catalogue admin. A stored record can never replace,
+ * hide or rename a fixture category there (same id or same slug is ignored),
+ * so the live shop and its products stay as they are; only the products
+ * remain fixtures (stored drafts are never merged in production).
+ */
+export function addStoredCategories(fixtures: Category[], stored: Category[]): Category[] {
+  const ids = new Set(fixtures.map((c) => c.id));
+  const slugs = new Set(fixtures.map((c) => c.slug));
+  const added: Category[] = [];
+  for (const c of stored) {
+    if (!c.visible || ids.has(c.id) || slugs.has(c.slug)) continue;
+    ids.add(c.id);
+    slugs.add(c.slug);
+    added.push(c);
+  }
+  return [...fixtures, ...added];
+}
+
 export function mergeProducts(fixtures: Product[], stored: Product[]): Product[] {
   const demoIds = new Set(fixtures.filter((p) => p.isDemo).map((p) => p.id));
   const byId = new Map(fixtures.map((p) => [p.id, p]));

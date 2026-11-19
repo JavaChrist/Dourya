@@ -58,7 +58,7 @@ export function DraftOnlyNotice({ mode }: { mode: CatalogAdminMode }) {
     <Notice tone="info">
       {mode === "production" ? (
         <>
-          Les rubriques et les fiches préparées ici restent <strong>privées</strong> : visibles uniquement dans cette administration, jamais dans la boutique publique, le panier ni le sitemap. Les photos ne sont accessibles qu&apos;aux comptes administrateurs. La publication et la vente restent fermées.
+          Une <strong>nouvelle rubrique visible</strong> apparaît tout de suite dans la boutique (filtres, page de la rubrique, accueil, sitemap), même vide. Les fiches préparées ici restent <strong>privées</strong> : visibles uniquement dans cette administration, jamais dans la boutique publique, le panier ni le sitemap. Les photos ne sont accessibles qu&apos;aux comptes administrateurs. La publication et la vente restent fermées.
         </>
       ) : (
         <>

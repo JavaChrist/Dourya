@@ -49,6 +49,20 @@ function parseImage(v: unknown): StoredImage | null {
   return image;
 }
 
+/** A product image path (photos are served by the site, never an outside URL). */
+export const isImageSrc = (s: string) => s.startsWith("/") && !s.startsWith("//") && s.length <= 300;
+
+/** Keeps a model photo only when it is still one of the product images (a deleted photo unlinks its model). */
+export function linkVariantImages(variants: ProductVariant[], images: readonly { src: string }[]): ProductVariant[] {
+  const known = new Set(images.map((i) => i.src));
+  return variants.map((v) => {
+    if (!v.imageSrc || known.has(v.imageSrc)) return v;
+    const rest = { ...v };
+    delete rest.imageSrc;
+    return rest;
+  });
+}
+
 function parseVariant(v: unknown): ProductVariant | null {
   if (!v || typeof v !== "object") return null;
   const o = v as Record<string, unknown>;
@@ -58,7 +72,10 @@ function parseVariant(v: unknown): ProductVariant | null {
   if (!id || !name || (stockMode !== "stocked" && stockMode !== "made_to_order")) return null;
   const priceCents = o.priceCents === null ? null : (num(o.priceCents) ?? null);
   const stock = o.stock === null || o.stock === undefined ? null : (num(o.stock) ?? null);
-  return { id, sku: str(o.sku) ?? `DRY-${id.toUpperCase()}`, name, attributes: [], priceCents, stockMode, stock, active: o.active !== false };
+  const variant: ProductVariant = { id, sku: str(o.sku) ?? `DRY-${id.toUpperCase()}`, name, attributes: [], priceCents, stockMode, stock, active: o.active !== false };
+  const imageSrc = str(o.imageSrc);
+  if (imageSrc && isImageSrc(imageSrc)) variant.imageSrc = imageSrc;
+  return variant;
 }
 
 /** Lenient read of a stored product: null when a required field is missing. */
@@ -69,7 +86,8 @@ export function parseStoredProduct(id: string, data: Data): Product | null {
   const status = str(data.status) as PublishStatus | undefined;
   if (!slug || !SLUG_PATTERN.test(slug) || !name || !status || !["draft", "published", "archived"].includes(status)) return null;
   const list = (v: unknown) => (Array.isArray(v) ? v : []);
-  const variants = list(data.variants).map(parseVariant).filter((x): x is ProductVariant => !!x);
+  const images = list(data.images).map(parseImage).filter((x): x is StoredImage => !!x);
+  const variants = linkVariantImages(list(data.variants).map(parseVariant).filter((x): x is ProductVariant => !!x), images);
   if (variants.length === 0) return null;
   return {
     id,
@@ -79,7 +97,7 @@ export function parseStoredProduct(id: string, data: Data): Product | null {
     status,
     categorySlugs: list(data.categorySlugs).filter((s): s is string => typeof s === "string"),
     collectionSlugs: list(data.collectionSlugs).filter((s): s is string => typeof s === "string"),
-    images: list(data.images).map(parseImage).filter((x): x is StoredImage => !!x),
+    images,
     variants,
     isDemo: false,
     createdAt: str(data.createdAt) ?? "",
@@ -130,7 +148,7 @@ export function validateCategoryForm(form: FormData): Validation<CategoryInput> 
 
 // ---- Product --------------------------------------------------------------
 
-export type VariantInput = { id: string; name: string; priceCents: number | null; stockMode: StockMode; stock: number | null; active: boolean };
+export type VariantInput = { id: string; name: string; priceCents: number | null; stockMode: StockMode; stock: number | null; active: boolean; imageSrc: string | null };
 export type ProductInput = {
   id: string | null;
   slug: string;
@@ -180,8 +198,10 @@ export function validateProductForm(form: FormData, knownCategorySlugs: Readonly
     if (vName.length < 1 || vName.length > 40) errors[`variant.${i}.name`] = "Entre 1 et 40 caractères.";
     if (priceCents !== null && (Number.isNaN(priceCents) || priceCents <= 0)) errors[`variant.${i}.price`] = "Un prix en euros, par exemple 6,95.";
     if (stock !== null && (!Number.isInteger(stock) || stock < 0 || stock > 9999)) errors[`variant.${i}.stock`] = "Un nombre entier entre 0 et 9999.";
+    const imageSrc = text(form, `variant.${i}.image`) || null;
+    if (imageSrc !== null && !isImageSrc(imageSrc)) errors[`variant.${i}.image`] = "Photo introuvable.";
     if (!/^[a-z0-9-]{1,40}$/.test(vId)) errors[`variant.${i}.name`] = "Nom d'option invalide.";
-    variants.push({ id: vId, name: vName, priceCents: Number.isNaN(priceCents) ? null : priceCents, stockMode, stock: stockMode === "stocked" ? stock : null, active: form.get(`variant.${i}.active`) === "on" });
+    variants.push({ imageSrc, id: vId, name: vName, priceCents: Number.isNaN(priceCents) ? null : priceCents, stockMode, stock: stockMode === "stocked" ? stock : null, active: form.get(`variant.${i}.active`) === "on" });
   }
   if (variants.length === 0) errors.variants = "Ajoutez au moins une option (par exemple « À l'unité »).";
   if (new Set(variants.map((v) => v.id)).size !== variants.length) errors.variants = "Deux options portent le même nom.";
@@ -192,7 +212,9 @@ export function validateProductForm(form: FormData, knownCategorySlugs: Readonly
 
 /** Variant as stored: same shape as the fixtures (attributes empty, SKU from the slug). */
 export function toVariant(slug: string, v: VariantInput): ProductVariant {
-  return { id: v.id, sku: `DRY-${slug.toUpperCase()}-${v.id.toUpperCase()}`.slice(0, 64), name: v.name, attributes: [], priceCents: v.priceCents, stockMode: v.stockMode, stock: v.stock, active: v.active };
+  const variant: ProductVariant = { id: v.id, sku: `DRY-${slug.toUpperCase()}-${v.id.toUpperCase()}`.slice(0, 64), name: v.name, attributes: [], priceCents: v.priceCents, stockMode: v.stockMode, stock: v.stock, active: v.active };
+  if (v.imageSrc) variant.imageSrc = v.imageSrc;
+  return variant;
 }
 
 // ---- Photos ---------------------------------------------------------------

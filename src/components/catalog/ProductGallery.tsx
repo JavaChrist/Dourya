@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, X, ZoomIn } from "lucide-react";
 import { useRef, useState } from "react";
 import type { Slide } from "@/lib/types";
 import { SlideVisual } from "@/components/ui/SlideVisual";
+import { useModelSelection } from "./ModelSelection";
 
 const roundButton =
   "flex size-11 items-center justify-center rounded-full bg-white/95 text-ink shadow-md transition hover:bg-white";
@@ -11,6 +12,14 @@ const roundButton =
 /** Multi-image gallery: thumbnails, and a zoom view in a native modal dialog (focus trap and Escape built in). */
 export function ProductGallery({ slides, name }: { slides: Slide[]; name: string }) {
   const [index, setIndex] = useState(0);
+  // A model picked in the cart form shows its photo (adjusted during render, no effect needed).
+  const selection = useModelSelection();
+  const [seen, setSeen] = useState(0);
+  if (selection && selection.version !== seen) {
+    setSeen(selection.version);
+    const i = selection.src ? slides.findIndex((s) => s.image?.src === selection.src) : -1;
+    if (i >= 0) setIndex(i);
+  }
   const dialogRef = useRef<HTMLDialogElement>(null);
   const current = slides[index] ?? slides[0];
   const many = slides.length > 1;
