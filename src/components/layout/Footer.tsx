@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Link2, Mail } from "lucide-react";
-import { footerLegal, mainNav, site, socialLinks } from "@/config/site";
-import type { SectionBackground } from "@/lib/types";
+import { copyrightHolder, footerLegal, site, socialLinks } from "@/config/site";
+import type { NavItem, SectionBackground } from "@/lib/types";
 import { Logo } from "@/components/ui/Logo";
 import { backgroundProps } from "@/components/ui/Section";
 
@@ -11,7 +11,7 @@ const linkClass = "rounded-sm text-ink hover:text-pink-strong hover:underline un
  * Footer. Contact, social and legal content are never invented: when a value
  * is missing in src/config/site.ts, a neutral "à compléter" note is shown.
  */
-export function Footer({ background }: { background: SectionBackground }) {
+export function Footer({ background, nav }: { background: SectionBackground; nav: NavItem[] }) {
   const bg = backgroundProps(background);
   const year = 2026;
   return (
@@ -27,7 +27,7 @@ export function Footer({ background }: { background: SectionBackground }) {
       <div className="bg-surface-muted">
         <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 sm:grid-cols-2 sm:px-6 lg:grid-cols-4">
           <FooterColumn title="Boutique">
-            {mainNav.map((item) => (
+            {nav.map((item) => (
               <li key={item.href}>
                 <Link href={item.href} className={linkClass}>
                   {item.label}
@@ -80,7 +80,7 @@ export function Footer({ background }: { background: SectionBackground }) {
           </FooterColumn>
         </div>
         <p className="border-t border-secondary/40 px-4 py-4 text-center text-sm text-ink-muted">
-          © {year} {site.name}. Tous droits réservés.
+          © {year} {copyrightHolder}. Tous droits réservés.
         </p>
       </div>
     </footer>

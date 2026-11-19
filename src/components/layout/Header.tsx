@@ -12,7 +12,8 @@ import { SearchBox, type SearchEntry } from "./SearchBox";
 const iconButton =
   "flex size-11 items-center justify-center rounded-full text-white transition hover:bg-white/15";
 
-type HeaderProps = { nav: NavItem[]; searchEntries: SearchEntry[] };
+/** `nav`: desktop header (limited number of rubriques); `menuNav`: mobile menu (all of them). */
+type HeaderProps = { nav: NavItem[]; menuNav: NavItem[]; searchEntries: SearchEntry[] };
 
 /**
  * usePathname() suspends on routes whose params are only known at request time
@@ -31,7 +32,7 @@ function HeaderWithPath(props: HeaderProps) {
   return <HeaderView {...props} pathname={usePathname()} />;
 }
 
-function HeaderView({ nav, searchEntries, pathname }: HeaderProps & { pathname: string | null }) {
+function HeaderView({ nav, menuNav, searchEntries, pathname }: HeaderProps & { pathname: string | null }) {
   const [searchOpen, setSearchOpen] = useState(false);
   const menuRef = useRef<HTMLDialogElement>(null);
 
@@ -129,7 +130,7 @@ function HeaderView({ nav, searchEntries, pathname }: HeaderProps & { pathname: 
         </div>
         <nav aria-label="Navigation mobile" className="flex-1 overflow-y-auto px-2">
           <ul className="space-y-1">
-            {nav.map((item) => (
+            {menuNav.map((item) => (
               <li key={item.href}>
                 <Link
                   href={item.href}

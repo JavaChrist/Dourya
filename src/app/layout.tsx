@@ -1,7 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Fredoka, Nunito } from "next/font/google";
 import "./globals.css";
-import { site, mainNav, siteOrigin } from "@/config/site";
+import { buildNav, HEADER_CATEGORY_LIMIT, site, siteOrigin } from "@/config/site";
+import { getVisibleCategories } from "@/lib/catalog";
 import { sectionBackgrounds } from "@/data/home";
 import { getSearchEntries } from "@/lib/catalog/search";
 import { CartProvider } from "@/components/cart/CartProvider";
@@ -26,6 +27,8 @@ export const viewport: Viewport = {
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
+  // Header, mobile menu and footer follow the visible rubriques (new admin rubriques included).
+  const categories = await getVisibleCategories();
   return (
     <html lang="fr" className={`${nunito.variable} ${fredoka.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col">
@@ -36,11 +39,11 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           Aller au contenu
         </a>
         <CartProvider>
-          <Header nav={mainNav} searchEntries={await getSearchEntries()} />
+          <Header nav={buildNav(categories, HEADER_CATEGORY_LIMIT)} menuNav={buildNav(categories)} searchEntries={await getSearchEntries()} />
           <main id="contenu" tabIndex={-1} className="flex-1 focus:outline-none">
             {children}
           </main>
-          <Footer background={sectionBackgrounds.footer} />
+          <Footer background={sectionBackgrounds.footer} nav={buildNav(categories)} />
         </CartProvider>
         <UpdateNotifier />
       </body>

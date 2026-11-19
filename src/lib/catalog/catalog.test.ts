@@ -6,8 +6,8 @@ import type { Category } from "@/lib/types";
 import { product, variant } from "@/test/factories";
 
 describe("catalogue visibility (fixture repository)", () => {
-  it("hides the Headbands category and its products", async () => {
-    expect((await getVisibleCategories()).map((c) => c.slug)).not.toContain("headbands");
+  it("shows the Headbands category, never its demo draft", async () => {
+    expect((await getVisibleCategories()).map((c) => c.slug)).toContain("headbands");
     expect((await getListedProducts()).map((p) => p.id)).not.toContain("demo-headband");
     expect(await getProductForPage("demo-headband")).toBeUndefined();
   });

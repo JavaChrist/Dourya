@@ -33,13 +33,12 @@ export const categories: Category[] = [
     order: 3,
   },
   {
-    // To confirm before activation (see README).
     id: "cat-headbands",
     slug: "headbands",
     name: "Headbands",
-    description: "Catégorie à confirmer",
+    description: "Headbands illustrés",
     icon: "headband",
-    visible: false,
+    visible: true,
     order: 4,
   },
 ];

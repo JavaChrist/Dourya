@@ -1,5 +1,28 @@
 import { describe, expect, it } from "vitest";
-import { parseSiteUrl, resolveSiteUrl } from "./site";
+import type { Category } from "@/lib/types";
+import { buildNav, parseSiteUrl, resolveSiteUrl } from "./site";
+
+const cat = (slug: string, name: string, visible = true) => ({ id: slug, slug, name, visible }) as Category;
+
+describe("buildNav", () => {
+  const categories = [cat("prints", "Prints"), cat("stickers", "Stickers"), cat("cachee", "Cachée", false), cat("porte-cles", "Porte-clés"), cat("headbands", "Headbands"), cat("test", "Test")];
+
+  it("lists Boutique, every visible rubrique in the given order, then Mail Club", () => {
+    expect(buildNav(categories).map((i) => i.href)).toEqual([
+      "/boutique",
+      "/categories/prints",
+      "/categories/stickers",
+      "/categories/porte-cles",
+      "/categories/headbands",
+      "/categories/test",
+      "/infos/mail-club",
+    ]);
+  });
+
+  it("caps the rubriques for the desktop header", () => {
+    expect(buildNav(categories, 4).map((i) => i.label)).toEqual(["Boutique", "Prints", "Stickers", "Porte-clés", "Headbands", "Mail Club"]);
+  });
+});
 
 describe("parseSiteUrl", () => {
   it("keeps only the origin of a valid URL", () => {

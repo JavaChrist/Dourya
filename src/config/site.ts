@@ -1,4 +1,4 @@
-import type { InfoPage, NavItem, SocialLink } from "@/lib/types";
+import type { Category, InfoPage, NavItem, SocialLink } from "@/lib/types";
 
 /** Production domain. www.dourya.fr, dourya.shop and www.dourya.shop redirect here (308, Vercel). */
 export const PRODUCTION_SITE_URL = "https://dourya.fr";
@@ -61,13 +61,25 @@ export const site = {
   contactEmail: "",
 };
 
-export const mainNav: NavItem[] = [
-  { label: "Boutique", href: "/boutique" },
-  { label: "Prints", href: "/categories/prints" },
-  { label: "Stickers", href: "/categories/stickers" },
-  { label: "Porte-clés", href: "/categories/porte-cles" },
-  { label: "Mail Club", href: "/infos/mail-club" },
-];
+/** Rubriques shown in the desktop header; the others stay in the mobile menu and the footer. */
+export const HEADER_CATEGORY_LIMIT = 4;
+
+/**
+ * Main navigation: "Boutique", then the visible rubriques (already sorted by
+ * display order, e.g. getVisibleCategories()), then "Mail Club". `limit` caps
+ * the number of rubriques (desktop header); a hidden rubrique is never listed.
+ */
+export function buildNav(categories: Category[], limit = Infinity): NavItem[] {
+  const rubriques = categories.filter((c) => c.visible).slice(0, limit);
+  return [
+    { label: "Boutique", href: "/boutique" },
+    ...rubriques.map((c) => ({ label: c.name, href: `/categories/${c.slug}` })),
+    { label: "Mail Club", href: "/infos/mail-club" },
+  ];
+}
+
+/** Copyright holder shown in the footer. */
+export const copyrightHolder = "JavaChrist";
 
 /** Empty until DOURYA provides the real accounts. */
 export const socialLinks: SocialLink[] = [];
