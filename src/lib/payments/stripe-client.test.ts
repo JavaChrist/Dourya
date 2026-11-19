@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { STRIPE_API, StripeError, createStripeClient, encodeForm, isStripeCheckoutUrl, parseSession, stripeKeyMode } from "./stripe-client";
+import { STRIPE_API, StripeError, createStripeClient, encodeForm, isStripeCheckoutUrl, parseSession, stripeErrorDetail, stripeKeyMode } from "./stripe-client";
 
 // Fictitious key and ids: never a real Stripe value.
 const KEY = `sk_test_${"x".repeat(24)}`;
@@ -86,7 +86,6 @@ describe("createStripeClient", () => {
     successUrl: "https://shop.example.test/commande/retour?commande=ord_1",
     cancelUrl: "https://shop.example.test/commande",
     expiresAt: 1_800_000_000,
-    methods: ["card"],
     idempotencyKey: "attempt-aaaaaaaaaaaa",
   };
 
@@ -100,10 +99,11 @@ describe("createStripeClient", () => {
     expect(headers["Idempotency-Key"]).toBe("attempt-aaaaaaaaaaaa");
     expect(headers.Authorization).toBe(`Bearer ${KEY}`);
     const form = Object.fromEntries(new URLSearchParams(String(init.body)));
+    // Stripe refuses payment_method_types: methods come from the dashboard.
+    expect(Object.keys(form).some((k) => k.startsWith("payment_method_types"))).toBe(false);
     expect(form).toMatchObject({
       mode: "payment",
       client_reference_id: "ord_1",
-      "payment_method_types[0]": "card",
       "line_items[0][price_data][currency]": "eur",
       "line_items[0][price_data][unit_amount]": "1000",
       "line_items[0][quantity]": "1",
@@ -152,5 +152,26 @@ describe("createStripeClient", () => {
       throw new Error("offline");
     }) as unknown as typeof fetch);
     await expect(offline.getCheckoutSession("cs_test_abc")).rejects.toMatchObject({ category: "network" });
+  });
+
+  it("keeps Stripe error type/code/param identifiers, never the message or a value", async () => {
+    const body = { error: { type: "invalid_request_error", code: "email_invalid", param: "customer_email", message: "Invalid email: someone@example.test" } };
+    const client = createStripeClient(KEY, (async () => json(body, 400)) as unknown as typeof fetch);
+    const error = (await client.getCheckoutSession("cs_test_abc").catch((e: unknown) => e)) as StripeError;
+    expect(error.detail).toEqual({ type: "invalid_request_error", code: "email_invalid", param: "customer_email" });
+    expect(JSON.stringify(error.detail)).not.toContain("example.test");
+  });
+});
+
+describe("stripeErrorDetail", () => {
+  it("drops fields that are not plain identifiers", () => {
+    expect(stripeErrorDetail({ error: { type: "invalid_request_error", code: "a b <x>", param: "x".repeat(200) } })).toEqual({ type: "invalid_request_error", code: undefined, param: undefined });
+    expect(stripeErrorDetail({ error: "nope" })).toBeUndefined();
+    expect(stripeErrorDetail(null)).toBeUndefined();
+  });
+
+  it("maps the missing account name message to a fixed label", () => {
+    const detail = stripeErrorDetail({ error: { type: "invalid_request_error", message: "In order to use Checkout, you must set an account or business name at https://dashboard.stripe.com/account." } });
+    expect(detail).toEqual({ type: "invalid_request_error", code: "account_name_missing", param: undefined });
   });
 });

@@ -143,9 +143,10 @@ describe("placeOrder", () => {
     const id = await onlyOrderId();
     expect(await getOrder(id)).toMatchObject({ paymentStatus: "awaiting_payment", paymentRef: "cs_test_fake1", totalCents: 1200, shippingCents: 200 });
     expect(await stock()).toMatchObject({ stock: 1, reserved: 1 });
-    // Server prices, shipping as its own option, card only, at least 30 minutes.
+    // Server prices, shipping as its own option, no payment_method_types (dashboard), at least 30 minutes.
     const sent = stripe.created[0];
-    expect(sent).toMatchObject({ orderId: id, lines: [{ unitAmountCents: 1000, quantity: 1 }], shipping: { amountCents: 200 }, methods: ["card"] });
+    expect(sent).toMatchObject({ orderId: id, lines: [{ unitAmountCents: 1000, quantity: 1 }], shipping: { amountCents: 200 } });
+    expect(sent).not.toHaveProperty("methods");
     expect(sent.expiresAt - nowSec).toBeGreaterThanOrEqual(30 * 60);
     expect(sent.cancelUrl).toBe(`${ORIGIN}/commande`);
   });

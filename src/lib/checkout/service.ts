@@ -10,7 +10,7 @@ import { parseStripeEvent, verifyStripeSignature } from "@/lib/payments/stripe-w
 import type { OrderLineSnapshot } from "@/lib/orders/types";
 import type { ShippingSettings } from "@/lib/shipping/types";
 import type { Product } from "@/lib/types";
-import { buildCheckout, checkoutGate, enabledMethods, type GateReason } from "./build";
+import { buildCheckout, checkoutGate, type GateReason } from "./build";
 import type { CheckoutSwitch } from "./test-preview";
 
 export type PlaceOrderInput = {
@@ -66,7 +66,8 @@ const fail = (code: PlaceOrderErrorCode, extra: Omit<Extract<PlaceOrderResult, {
 });
 
 function logStripeError(event: string, error: unknown) {
-  if (error instanceof StripeError) logEvent(event, { category: error.category, status: error.status ?? undefined });
+  if (error instanceof StripeError)
+    logEvent(event, { category: error.category, status: error.status ?? undefined, stripeType: error.detail?.type, stripeCode: error.detail?.code, stripeParam: error.detail?.param });
   else logEvent(event, { category: "unexpected", error: error instanceof Error ? error.name : "unknown" });
 }
 
@@ -161,7 +162,6 @@ export async function placeOrder(input: PlaceOrderInput, deps: PlaceOrderDeps): 
       successUrl: back,
       cancelUrl: `${deps.origin}/commande`,
       expiresAt,
-      methods: enabledMethods(),
       // Same attempt (and slot) = same session at Stripe, even if two requests race here.
       idempotencyKey: `${input.attemptKey}-${expiresAt}`,
     });

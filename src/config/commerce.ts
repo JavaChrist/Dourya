@@ -49,15 +49,13 @@ export const commerceConfig = {
 } as const;
 
 /**
- * Stripe Checkout payment methods (payment_method_types). Card only by
- * default. Note: Apple Pay and Google Pay are card wallets at Stripe; they
- * can still show on the hosted page if they are enabled in the Stripe
- * dashboard (Settings > Payment methods). Amounts are always in EUR cents,
- * recomputed on the server.
+ * Stripe payment settings. Payment methods are not sent with the Checkout
+ * Session (Stripe no longer accepts payment_method_types): they are chosen in
+ * the Stripe dashboard (Settings > Payment methods), card at least. Amounts
+ * are always in EUR cents, recomputed on the server.
  */
 export const paymentConfig = {
   provider: "stripe",
-  methods: { card: true },
   /**
    * A live Stripe key (sk_live_...) is refused while this is false: only test
    * payments can be made until the merchant validates the go-live.

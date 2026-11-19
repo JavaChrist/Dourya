@@ -34,11 +34,6 @@ export function checkoutGate(input: {
   return null;
 }
 
-export const enabledMethods = (): string[] =>
-  Object.entries(paymentConfig.methods)
-    .filter(([, on]) => on)
-    .map(([method]) => method);
-
 export type CheckoutDraft = {
   cart: PricedCart;
   lines: OrderLineSnapshot[];

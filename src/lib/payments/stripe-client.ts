@@ -6,7 +6,8 @@ import type { PaymentView } from "@/lib/orders/payment-status";
  * the server wrapper (stripe.ts) gives it the secret key.
  *
  * Never logs or returns the key, the request body or Stripe's raw error
- * message: errors carry an HTTP status and a short known category only.
+ * message: errors carry an HTTP status, a short known category and, when
+ * Stripe gives them, its error type/code/param identifiers (no values).
  */
 
 export const STRIPE_API = "https://api.stripe.com/v1";
@@ -21,10 +22,33 @@ export function stripeKeyMode(key: string | undefined): StripeMode | null {
 
 export type StripeErrorCategory = "not_found" | "unauthorized" | "invalid_request" | "idempotency" | "rate_limited" | "unavailable" | "bad_response" | "network";
 
+/**
+ * Machine-readable part of a Stripe error body (type, code, param), kept only
+ * when each field is a plain identifier: never the message, never a value
+ * sent by the customer. `param` names the rejected field (e.g. "customer_email").
+ */
+export type StripeErrorDetail = { type?: string; code?: string; param?: string };
+
+const SAFE_ID = /^[A-Za-z0-9_.[\]]{1,100}$/;
+
+/** Known Stripe messages without a code, mapped to a fixed label (the message itself is never kept). */
+const KNOWN_MESSAGES: [RegExp, string][] = [[/business name|account name|display name/i, "account_name_missing"]];
+
+export function stripeErrorDetail(body: unknown): StripeErrorDetail | undefined {
+  const error = body && typeof body === "object" ? (body as { error?: unknown }).error : undefined;
+  if (!error || typeof error !== "object") return undefined;
+  const e = error as Record<string, unknown>;
+  const pick = (v: unknown) => (typeof v === "string" && SAFE_ID.test(v) ? v : undefined);
+  const known = typeof e.message === "string" ? KNOWN_MESSAGES.find(([re]) => re.test(e.message as string))?.[1] : undefined;
+  const detail: StripeErrorDetail = { type: pick(e.type), code: pick(e.code) ?? known, param: pick(e.param) };
+  return detail.type || detail.code || detail.param ? detail : undefined;
+}
+
 export class StripeError extends Error {
   constructor(
     readonly category: StripeErrorCategory,
     readonly status: number | null,
+    readonly detail?: StripeErrorDetail,
   ) {
     super(`stripe_${category}`);
     this.name = "StripeError";
@@ -124,7 +148,6 @@ export type CreateSessionInput = {
   cancelUrl: string;
   /** Unix seconds. Stripe accepts 30 min to 24 h after creation. */
   expiresAt: number;
-  methods: string[];
   /** Same key = same session at Stripe (double click, retry after a timeout). */
   idempotencyKey: string;
 };
@@ -149,7 +172,15 @@ export function createStripeClient(apiKey: string, fetchImpl: typeof fetch = fet
     } catch {
       throw new StripeError("network", null);
     }
-    if (!response.ok) throw new StripeError(categoryFor(response.status), response.status);
+    if (!response.ok) {
+      let detail: StripeErrorDetail | undefined;
+      try {
+        detail = stripeErrorDetail(await response.json());
+      } catch {
+        detail = undefined;
+      }
+      throw new StripeError(categoryFor(response.status), response.status, detail);
+    }
     try {
       return await response.json();
     } catch {
@@ -164,7 +195,6 @@ export function createStripeClient(apiKey: string, fetchImpl: typeof fetch = fet
         client_reference_id: input.orderId,
         customer_email: input.email,
         locale: "fr",
-        payment_method_types: input.methods,
         line_items: input.lines.map((l) => ({
           quantity: l.quantity,
           price_data: { currency: "eur", unit_amount: l.unitAmountCents, product_data: { name: l.name } },
