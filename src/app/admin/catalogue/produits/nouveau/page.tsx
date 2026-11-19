@@ -16,7 +16,7 @@ async function Content() {
   const { categories } = await adminCatalog();
   return (
     <div className="mt-8 space-y-6">
-      <DraftOnlyNotice />
+      <DraftOnlyNotice mode={state.mode} />
       <Card title="Fiche">
         <ProductForm categories={categories} />
       </Card>

@@ -1,5 +1,5 @@
 import type { Category, Collection, Product } from "@/lib/types";
-import { catalogAdminEnabled } from "./admin-gate";
+import { catalogStoreMerged } from "./admin-gate";
 import { isDraftPreview } from "./draft-preview";
 import { createFixtureRepository } from "./fixture-repository";
 import { fixtures } from "./fixtures";
@@ -11,16 +11,17 @@ import { isListed, isShown, visibleCategories, visibleCollections } from "./visi
  * Public catalogue API used by pages and server actions.
  *
  * Fixtures (src/data) everywhere. On the stripe-test preview only (database
- * `dourya-test`, see admin-gate.ts), the records written by the catalogue
- * admin are merged on top (merge.ts: demo products stay untouched, stored
- * products are always drafts). dourya.fr never reads Firestore for the
- * catalogue.
+ * `dourya-test`, catalogStoreMerged in admin-gate.ts), the records written by
+ * the catalogue admin are merged on top (merge.ts: demo products stay
+ * untouched, stored products are always drafts). dourya.fr never merges
+ * them: the admin there works on its own records (admin-repository.ts), the
+ * public shop, cart and sitemap keep the fixtures.
  *
  * Fixture-only repository (kept for the tests and as the fallback). */
 export const repository: CatalogRepository = createFixtureRepository(fixtures);
 
 async function currentRepository(): Promise<CatalogRepository> {
-  if (!catalogAdminEnabled(process.env)) return repository;
+  if (!catalogStoreMerged(process.env)) return repository;
   try {
     const { cachedStoredCatalog } = await import("./stored-catalog");
     const stored = await cachedStoredCatalog();

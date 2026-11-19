@@ -39,7 +39,7 @@ function Uploader({ productId, productName, remaining }: { productId: string; pr
         form.set("alt", productName);
         const result = await uploadPhotoAction(form);
         set(i, result.status === "ok" ? { status: "done" } : { status: "error", message: result.message });
-        if (result.status !== "ok" && result.message?.includes("préversion")) break;
+        if (result.status !== "ok" && result.message?.includes("n'est pas ouverte ici")) break;
       } catch {
         set(i, { status: "error", message: "Photo illisible ou trop lourde" });
       }

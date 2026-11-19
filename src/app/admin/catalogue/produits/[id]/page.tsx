@@ -34,13 +34,16 @@ async function Content({ params, searchParams }: { params: Promise<{ id: string 
   return (
     <div className="mt-8 space-y-6">
       {created && <Notice tone="success">Fiche créée en brouillon. Ajoutez ses photos ci-dessous.</Notice>}
-      <DraftOnlyNotice />
+      <DraftOnlyNotice mode={state.mode} />
       <div className="flex flex-wrap items-center gap-3">
         <h2 className="font-display text-2xl font-semibold text-ink">{product.name}</h2>
-        <Link href={`/produits/${product.slug}`} className={secondaryButton}>
-          <ExternalLink aria-hidden className="size-4" />
-          Voir la fiche
-        </Link>
+        {/* dourya.fr never shows drafts: the public page would be a 404. Preview on stripe-test only. */}
+        {state.mode === "test" && (
+          <Link href={`/produits/${product.slug}`} className={secondaryButton}>
+            <ExternalLink aria-hidden className="size-4" />
+            Voir la fiche
+          </Link>
+        )}
       </div>
       <Card title="Photos">
         <PhotoManager productId={product.id} productName={product.name} images={product.images} max={MAX_IMAGES} />

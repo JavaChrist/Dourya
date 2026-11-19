@@ -5,7 +5,7 @@ import { errorCode, logEvent } from "@/lib/log";
 
 /**
  * Draft photo of the catalogue admin, for signed-in admins only, on the
- * stripe-test preview only. Anyone else gets a 404 (the route is not revealed).
+ * catalogue admin open (dourya.fr or the stripe-test preview). Anyone else gets a 404 (the route is not revealed).
  */
 const notFound = () => new Response(null, { status: 404, headers: { "Cache-Control": "private, no-store" } });
 

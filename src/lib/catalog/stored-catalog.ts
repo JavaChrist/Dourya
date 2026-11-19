@@ -5,8 +5,8 @@ import type { Category, Product } from "@/lib/types";
 import { parseStoredCategory, parseStoredProduct } from "./stored-schema";
 
 /**
- * Catalogue records written by the catalogue admin, in Firestore (`dourya-test`
- * on the stripe-test preview, see admin-gate.ts). Server only: the collections
+ * Catalogue records written by the catalogue admin, in Firestore ("(default)" on
+ * dourya.fr, `dourya-test` on the stripe-test preview, see admin-gate.ts). Server only: the collections
  * are refused to clients by firestore.rules (catch-all).
  */
 export const CATEGORIES_COLLECTION = "catalogCategories";

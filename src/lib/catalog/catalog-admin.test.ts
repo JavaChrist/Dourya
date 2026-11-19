@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { realProducts } from "@/data/real-products";
 import type { Product } from "@/lib/types";
-import { catalogAdminState, catalogBucket, draftPhotoPath, isDraftPhotoUrl, PHOTO_FILE_PATTERN, PRODUCT_ID_PATTERN } from "./admin-gate";
+import { firestoreDatabaseId, isTestPreviewCheckout } from "@/lib/checkout/test-preview";
+import { commerceConfig } from "@/config/commerce";
+import { catalogAdminState, catalogBucket, catalogStoreMerged, draftPhotoPath, isDraftPhotoUrl, PHOTO_FILE_PATTERN, PRODUCT_ID_PATTERN } from "./admin-gate";
 import { fixtures } from "./fixtures";
 import { planImport, PUBLIC_PHOTO_PREFIX, toStoredProductDoc } from "./import-plan";
 import { mergeCategories, mergeProducts } from "./merge";
@@ -11,9 +13,23 @@ import { isListed } from "./visibility";
 const preview = { VERCEL_ENV: "preview", VERCEL_GIT_COMMIT_REF: "stripe-test", FIRESTORE_DATABASE_ID: "dourya-test", FIREBASE_ADMIN_PROJECT_ID: "dourya-shop" };
 
 describe("catalogue admin gate", () => {
-  it("opens only on the stripe-test preview with dourya-test", () => {
-    expect(catalogAdminState(preview)).toEqual({ enabled: true, bucket: "dourya-shop.firebasestorage.app" });
-    expect(catalogAdminState({ ...preview, VERCEL_ENV: "production" })).toEqual({ enabled: false, reason: "not-test-preview" });
+  it("opens on dourya.fr in mode production, with the production database and bucket", () => {
+    const production = { VERCEL_ENV: "production", VERCEL_GIT_COMMIT_REF: "main", NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: "dourya-shop.firebasestorage.app", FIREBASE_ADMIN_PROJECT_ID: "dourya-shop" };
+    expect(catalogAdminState(production)).toEqual({ enabled: true, bucket: "dourya-shop.firebasestorage.app", mode: "production" });
+    // Never the test database in production, even if the variable were set there.
+    expect(firestoreDatabaseId({ ...production, FIRESTORE_DATABASE_ID: "dourya-test" })).toBeUndefined();
+    expect(catalogAdminState({ VERCEL_ENV: "production" })).toEqual({ enabled: false, reason: "bucket" });
+    // The public shop of dourya.fr never merges the stored catalogue (working rubriques, drafts).
+    expect(catalogStoreMerged(production)).toBe(false);
+    expect(catalogStoreMerged(preview)).toBe(true);
+    expect(catalogStoreMerged({})).toBe(false);
+    // Payment stays closed on dourya.fr.
+    expect(commerceConfig.checkoutEnabled).toBe(false);
+    expect(isTestPreviewCheckout({ ...production, CHECKOUT_ENABLED: "true" }, "test")).toBe(false);
+  });
+
+  it("opens on the stripe-test preview with dourya-test (mode test)", () => {
+    expect(catalogAdminState(preview)).toEqual({ enabled: true, bucket: "dourya-shop.firebasestorage.app", mode: "test" });
     expect(catalogAdminState({ ...preview, VERCEL_GIT_COMMIT_REF: "main" })).toEqual({ enabled: false, reason: "not-test-preview" });
     expect(catalogAdminState({ ...preview, FIRESTORE_DATABASE_ID: "" })).toEqual({ enabled: false, reason: "database" });
     expect(catalogAdminState({ ...preview, FIRESTORE_DATABASE_ID: "(default)" })).toEqual({ enabled: false, reason: "database" });
@@ -23,7 +39,7 @@ describe("catalogue admin gate", () => {
 
   it("opens in local dev on the emulators only", () => {
     const local = { NODE_ENV: "development", FIRESTORE_EMULATOR_HOST: "127.0.0.1:8080", FIREBASE_STORAGE_EMULATOR_HOST: "127.0.0.1:9199" };
-    expect(catalogAdminState(local)).toEqual({ enabled: true, bucket: "demo-dourya.firebasestorage.app" });
+    expect(catalogAdminState(local)).toEqual({ enabled: true, bucket: "demo-dourya.firebasestorage.app", mode: "test" });
     expect(catalogAdminState({ ...local, VERCEL_ENV: "development" }).enabled).toBe(false);
     expect(catalogAdminState({ ...local, FIREBASE_STORAGE_EMULATOR_HOST: undefined }).enabled).toBe(false);
   });

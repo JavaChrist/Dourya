@@ -12,11 +12,12 @@ import { allowAction } from "@/lib/security/limit";
 
 /**
  * Catalogue admin actions. Each one: admin role (again, not only on the page),
- * catalogue admin open here (stripe-test preview + dourya-test, see
- * admin-gate.ts), rate limit, validation, write, then the "catalog" cache tag
- * is expired so the shop pages of the preview show the change.
+ * catalogue admin open here (dourya.fr in mode "production", or the
+ * stripe-test preview + dourya-test, see admin-gate.ts), rate limit,
+ * validation, write, then the "catalog" cache tag is expired (the preview's
+ * shop pages show the change; dourya.fr's public shop never merges it).
  */
-const CLOSED: FormState = { status: "error", message: "L'administration du catalogue est disponible uniquement sur la préversion stripe-test (base dourya-test). Rien n'a été enregistré." };
+const CLOSED: FormState = { status: "error", message: "L'administration du catalogue n'est pas ouverte ici. Rien n'a été enregistré." };
 const RATE_LIMITED: FormState = { status: "error", message: "Trop de modifications d'affilée. Réessayez dans quelques minutes." };
 const FAILED: FormState = { status: "error", message: "L'enregistrement n'a pas abouti. Réessayez plus tard." };
 

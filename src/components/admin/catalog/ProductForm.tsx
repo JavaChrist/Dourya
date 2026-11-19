@@ -59,7 +59,7 @@ export function ProductForm({ product, categories }: { product?: Product; catego
           Statut
         </label>
         <select id="status" name="status" defaultValue={v("status", product?.status === "archived" ? "archived" : "draft")} className={selectClass}>
-          <option value="draft">Brouillon (visible sur la préversion seulement)</option>
+          <option value="draft">Brouillon (visible dans l&apos;administration seulement)</option>
           <option value="archived">Archivé</option>
         </select>
         <p className="mt-1 text-sm text-ink-muted">La publication n&apos;est pas ouverte pendant le développement.</p>

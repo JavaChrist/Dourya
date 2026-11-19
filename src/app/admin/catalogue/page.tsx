@@ -19,7 +19,7 @@ async function Content() {
   const real = products.filter((p) => !p.isDemo);
   return (
     <div className="mt-8 space-y-6">
-      <DraftOnlyNotice />
+      <DraftOnlyNotice mode={state.mode} />
       <div className="grid gap-4 sm:grid-cols-3">
         <Link href="/admin/catalogue/rubriques" className={tile}>
           <FolderTree aria-hidden className="size-6 text-pink-strong" />

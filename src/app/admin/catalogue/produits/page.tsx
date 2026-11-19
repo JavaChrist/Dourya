@@ -21,7 +21,7 @@ async function Content() {
   const real = products.filter((p) => !p.isDemo);
   return (
     <div className="mt-8 space-y-6">
-      <DraftOnlyNotice />
+      <DraftOnlyNotice mode={state.mode} />
       <ul className="divide-y divide-secondary/30 rounded-lg bg-white ring-1 ring-secondary/30">
         {real.map((p) => {
           const cover = p.images[0];

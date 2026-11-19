@@ -310,6 +310,12 @@ export const photoGalleries: PhotoGallery[] = [
         "width": 780,
         "height": 780,
         "original": "IMG_6830.jpeg"
+      },
+      {
+        "src": "/images/products/prints/print-twilight/12.webp",
+        "width": 780,
+        "height": 780,
+        "original": "IMG_6829.jpeg"
       }
     ]
   },
@@ -325,6 +331,12 @@ export const photoGalleries: PhotoGallery[] = [
         "width": 780,
         "height": 780,
         "original": "IMG_6828.jpeg"
+      },
+      {
+        "src": "/images/products/prints/print-twilight/11.webp",
+        "width": 780,
+        "height": 780,
+        "original": "IMG_6827.jpeg"
       }
     ]
   },
@@ -499,18 +511,6 @@ export const photoGalleries: PhotoGallery[] = [
         "width": 780,
         "height": 780,
         "original": "IMG_6802.jpeg"
-      },
-      {
-        "src": "/images/products/prints/print-twilight/11.webp",
-        "width": 780,
-        "height": 780,
-        "original": "IMG_6827.jpeg"
-      },
-      {
-        "src": "/images/products/prints/print-twilight/12.webp",
-        "width": 780,
-        "height": 780,
-        "original": "IMG_6829.jpeg"
       }
     ]
   },

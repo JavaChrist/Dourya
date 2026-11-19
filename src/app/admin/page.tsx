@@ -67,7 +67,7 @@ async function AdminContent() {
         )}
 
         <Card title="Catalogue">
-          <p className="text-ink-muted">Rubriques, fiches en brouillon et photos (préversion stripe-test uniquement).</p>
+          <p className="text-ink-muted">Rubriques, fiches en brouillon et photos privées. Rien n&apos;apparaît dans la boutique publique tant que la publication est fermée.</p>
           <Link href="/admin/catalogue" className={`${secondaryButton} mt-4`}>
             Ouvrir le catalogue
           </Link>

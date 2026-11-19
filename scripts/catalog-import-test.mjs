@@ -1,17 +1,22 @@
 #!/usr/bin/env node
 /**
  * Imports the real DOURYA drafts (30 products from the 29 photo galleries, see
- * src/data/real-products.ts) into the stored catalogue of the TEST database
- * `dourya-test` (collection catalogProducts), for the catalogue admin on the
- * stripe-test preview.
+ * src/data/real-products.ts) into the stored catalogue (collection
+ * catalogProducts) of:
+ * - the TEST database `dourya-test` (stripe-test preview), by default;
+ * - the PRODUCTION database "(default)" (catalogue admin of dourya.fr) with
+ *   --prod. Writing there also needs --confirm-prod; without it, --prod is a
+ *   dry-run. The public shop of dourya.fr never merges these drafts.
  *
- * - Always `dourya-test`, never "(default)"; refused with an emulator set.
+ * - Refused with an emulator set.
  * - Products already stored are skipped (admin edits are never overwritten);
  *   writes use create(), which fails rather than replace.
  * - Everything stays a draft; the WebP photos under /images/products/** are referenced.
  *
- * Usage: npm run catalog:import -- --dry-run   (prints the plan, writes nothing)
- *        npm run catalog:import                (writes)
+ * Usage: npm run catalog:import -- --dry-run          (dourya-test, plan only)
+ *        npm run catalog:import                       (dourya-test, writes)
+ *        npm run catalog:import -- --prod             ("(default)", plan only)
+ *        npm run catalog:import -- --prod --confirm-prod  ("(default)", writes)
  * Credentials: FIREBASE_ADMIN_* from .env.local (never printed). Errors: gRPC code only.
  */
 import { cert, initializeApp } from "firebase-admin/app";
@@ -19,18 +24,19 @@ import { getFirestore } from "firebase-admin/firestore";
 import { realProducts } from "../src/data/real-products.ts";
 import { planImport, toStoredProductDoc } from "../src/lib/catalog/import-plan.ts";
 
-const DATABASE_ID = "dourya-test";
+const prod = process.argv.includes("--prod");
+const DATABASE_ID = prod ? "(default)" : "dourya-test";
 const COLLECTION = "catalogProducts";
-const dryRun = process.argv.includes("--dry-run");
+const dryRun = process.argv.includes("--dry-run") || (prod && !process.argv.includes("--confirm-prod"));
 
 function connect() {
   const projectId = process.env.FIREBASE_ADMIN_PROJECT_ID;
   const clientEmail = process.env.FIREBASE_ADMIN_CLIENT_EMAIL;
-  const privateKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY?.replace(/\n/g, "\n");
+  const privateKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY?.replace(/\\n/g, "\n"); // same as src/lib/firebase/admin-app.ts
   if (process.env.FIRESTORE_EMULATOR_HOST) return { error: "emulator-set" };
   if (!projectId || !clientEmail || !privateKey) return { error: "credentials-missing" };
   try {
-    return { db: getFirestore(initializeApp({ credential: cert({ projectId, clientEmail, privateKey }), projectId }), DATABASE_ID) };
+    return { db: (() => { const app = initializeApp({ credential: cert({ projectId, clientEmail, privateKey }), projectId }); return prod ? getFirestore(app) : getFirestore(app, DATABASE_ID); })() };
   } catch {
     return { error: "credentials-invalid" };
   }

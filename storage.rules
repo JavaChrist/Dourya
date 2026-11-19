@@ -9,7 +9,7 @@ service firebase.storage {
       allow write: if false;
     }
 
-    // Draft photos of the catalogue admin (stripe-test preview): written and
+    // Draft photos of the catalogue admin (dourya.fr and the stripe-test preview): written and
     // read by the server only (Admin SDK), served to admins by
     // /admin/catalogue/photos/**. Never public.
     match /catalog-drafts/{allPaths=**} {

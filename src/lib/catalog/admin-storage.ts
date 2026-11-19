@@ -6,7 +6,7 @@ import { catalogAdminState, draftPhotoPath } from "./admin-gate";
 /**
  * Draft photos of the catalogue admin, in Storage under `catalog-drafts/`
  * (outside the public `products/**`; storage.rules refuses every client).
- * Only reachable while the catalogue admin is open (stripe-test preview).
+ * Only reachable while the catalogue admin is open (dourya.fr or the stripe-test preview).
  */
 export class CatalogClosedError extends Error {
   constructor() {

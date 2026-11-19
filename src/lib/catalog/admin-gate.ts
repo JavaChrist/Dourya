@@ -9,13 +9,18 @@ export { DRAFT_PHOTO_ROUTE, isDraftPhotoUrl } from "./draft-photo-url";
  * it writes. Pure (env passed in) so it can be unit-tested.
  *
  * Open only:
- * - on the Vercel preview of the `stripe-test` branch, with
- *   FIRESTORE_DATABASE_ID = `dourya-test` and a Storage bucket known; or
- * - in local `next dev` on the Firebase emulators (Firestore and Storage,
- *   "demo-" project: nothing reaches a real project).
- * Production, other previews, local builds and tests stay closed: the admin
- * pages show a notice and every write is refused. dourya.fr keeps the
- * fixture catalogue.
+ * - mode "production": on the Vercel production deployment (dourya.fr), with
+ *   the production Firebase configuration ("(default)" database, the
+ *   project's bucket). Lizzie prepares rubriques, drafts and photos there,
+ *   but nothing of it reaches the public shop: catalogStoreMerged() is false
+ *   in production, so dourya.fr keeps the fixture catalogue (pages, cart,
+ *   sitemap). Publishing stays refused by validateProductForm;
+ * - mode "test": on the Vercel preview of the `stripe-test` branch, with
+ *   FIRESTORE_DATABASE_ID = `dourya-test` and a Storage bucket known (the
+ *   stored catalogue is merged in the preview's shop pages); or in local
+ *   `next dev` on the Firebase emulators ("demo-" project).
+ * Other previews, local builds and tests stay closed: the admin pages show a
+ * notice and every write is refused.
  */
 type Env = { readonly [key: string]: string | undefined };
 
@@ -39,19 +44,39 @@ export function catalogBucket(env: Env): string | undefined {
   return `${projectId}.firebasestorage.app`;
 }
 
-export type CatalogAdminState = { enabled: true; bucket: string } | { enabled: false; reason: "not-test-preview" | "database" | "bucket" };
+export type CatalogAdminMode = "test" | "production";
+export type CatalogAdminState =
+  | { enabled: true; bucket: string; mode: CatalogAdminMode }
+  | { enabled: false; reason: "not-test-preview" | "database" | "bucket" };
 
 export function catalogAdminState(env: Env): CatalogAdminState {
+  if (env.VERCEL_ENV === "production") {
+    // firestoreDatabaseId() is always "(default)" (undefined) in production.
+    const bucket = catalogBucket(env);
+    if (!bucket) return { enabled: false, reason: "bucket" };
+    return { enabled: true, bucket, mode: "production" };
+  }
   const emulators = onEmulators(env);
   const preview = env.VERCEL_ENV === "preview" && env.VERCEL_GIT_COMMIT_REF === TEST_PREVIEW_BRANCH;
   if (!preview && !emulators) return { enabled: false, reason: "not-test-preview" };
   if (preview && firestoreDatabaseId(env) !== TEST_DATABASE_ID) return { enabled: false, reason: "database" };
   const bucket = catalogBucket(env);
   if (!bucket) return { enabled: false, reason: "bucket" };
-  return { enabled: true, bucket };
+  return { enabled: true, bucket, mode: "test" };
 }
 
 export const catalogAdminEnabled = (env: Env): boolean => catalogAdminState(env).enabled;
+
+/**
+ * Stored catalogue merged into the shop pages (catalogue, product pages,
+ * search, cart, sitemap)? Only in mode "test". In production the admin works
+ * on its own records and dourya.fr keeps the fixture catalogue: working
+ * rubriques and drafts never appear in the public shop.
+ */
+export function catalogStoreMerged(env: Env): boolean {
+  const state = catalogAdminState(env);
+  return state.enabled && state.mode === "test";
+}
 
 /** Draft photo ids and file names accepted by the photo route and actions. */
 export const PRODUCT_ID_PATTERN = /^[a-z0-9][a-z0-9-]{1,79}$/;

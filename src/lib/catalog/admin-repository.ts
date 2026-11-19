@@ -11,7 +11,7 @@ import { CATEGORIES_COLLECTION, PRODUCTS_COLLECTION, readStoredCatalog } from ".
 import { MAX_IMAGES, parseStoredProduct, toVariant, type CategoryInput, type ProductInput } from "./stored-schema";
 
 /**
- * Writes of the catalogue admin (Firestore `dourya-test` + Storage
+ * Writes of the catalogue admin (Firestore "(default)" on dourya.fr or `dourya-test` on the preview, + Storage
  * `catalog-drafts/`). Every function refuses when the admin is closed here
  * (admin-gate.ts), on top of the check in the actions.
  */

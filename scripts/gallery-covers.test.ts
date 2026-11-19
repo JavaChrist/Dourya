@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyCovers } from "./gallery-covers.mjs";
+import { applyCovers, applyMembership } from "./gallery-covers.mjs";
 
 const img = (n: number, original: string) => ({ src: `/images/products/prints/print-twilight/0${n}.webp`, width: 10, height: 10, original });
 const galleries = [
@@ -50,5 +50,43 @@ describe("applyCovers (galeries.json)", () => {
     expect(out[0].images[0].original).toBe("IMG_6793.jpeg");
     expect(report[0]).toMatchObject({ status: "missing", detail: "aucune image avec src = cover (x.jpg)" });
     expect(report[1]).toMatchObject({ status: "missing", detail: "source introuvable parmi les photos importées (IMG_9999.jpeg)" });
+  });
+});
+
+describe("applyMembership (galeries.json)", () => {
+  const p = (dir: string, n: number, original: string) => ({ src: `/images/products/prints/${dir}/0${n}.webp`, width: 10, height: 10, original });
+  const base = () => [
+    { slug: "print-twilight", folder: "TWILIGHT", rubrique: "PRINTS", category: "prints", kind: "print", images: [p("print-twilight", 1, "IMG_6793.jpeg"), p("print-twilight", 2, "IMG_6827.jpeg"), p("print-twilight", 3, "IMG_6829.jpeg")] },
+    { slug: "print-chat-roi-2", folder: "CHAT ROI 2", rubrique: "PRINTS", category: "prints", kind: "print", images: [p("print-chat-roi-2", 1, "IMG_6830.jpeg")] },
+    { slug: "print-chat-roi-3", folder: "CHAT ROI 3", rubrique: "PRINTS", category: "prints", kind: "print", images: [p("print-chat-roi-3", 1, "IMG_6828.jpeg")] },
+  ];
+  const entry = (folder: string, cover: string, sources: string[]) => ({ folder, cover, images: sources.map((s) => ({ src: s.toLowerCase(), source: `PRINTS/${folder}/${s}` })) });
+
+  it("moves a photo to its new gallery, keeps the file and the cover first", () => {
+    const json = { galleries: [
+      entry("TWILIGHT", "img_6793.jpeg", ["IMG_6793.jpeg"]),
+      entry("CHAT ROI 2", "img_6830.jpeg", ["IMG_6829.jpeg", "IMG_6830.jpeg"]),
+      entry("CHAT ROI 3", "img_6828.jpeg", ["IMG_6827.jpeg", "IMG_6828.jpeg"]),
+    ] };
+    const { ok, galleries: out, moved, dropped } = applyMembership(base(), json);
+    expect(ok).toBe(true);
+    expect(dropped).toEqual([]);
+    const names = (slug: string) => out.find((g: { slug: string }) => g.slug === slug).images.map((i: { original: string }) => i.original);
+    expect(names("print-twilight")).toEqual(["IMG_6793.jpeg"]);
+    expect(names("print-chat-roi-2")).toEqual(["IMG_6830.jpeg", "IMG_6829.jpeg"]);
+    expect(names("print-chat-roi-3")).toEqual(["IMG_6828.jpeg", "IMG_6827.jpeg"]);
+    // The .webp keeps its path: only membership changes.
+    expect(out.find((g: { slug: string }) => g.slug === "print-chat-roi-2").images[1].src).toBe("/images/products/prints/print-twilight/03.webp");
+    expect(moved).toEqual([
+      { original: "IMG_6829.jpeg", from: "print-twilight", to: "print-chat-roi-2" },
+      { original: "IMG_6827.jpeg", from: "print-twilight", to: "print-chat-roi-3" },
+    ]);
+  });
+
+  it("refuses an unknown photo, a photo claimed twice and reports a dropped one", () => {
+    const unknown = applyMembership(base(), { galleries: [entry("TWILIGHT", "img_6793.jpeg", ["IMG_6793.jpeg", "IMG_9999.jpeg"]), entry("CHAT ROI 2", "img_6830.jpeg", ["IMG_6830.jpeg"]), entry("CHAT ROI 3", "img_6828.jpeg", ["IMG_6828.jpeg", "IMG_6830.jpeg"])] });
+    expect(unknown.ok).toBe(false);
+    expect(unknown.report.filter((r: { status: string }) => r.status === "missing").map((r: { detail: string }) => r.detail)).toEqual(["photo inconnue : IMG_9999.jpeg", "photo déjà dans print-chat-roi-2 : IMG_6830.jpeg"]);
+    expect(unknown.dropped.map((d: { original: string }) => d.original).sort()).toEqual(["IMG_6827.jpeg", "IMG_6829.jpeg"]);
   });
 });

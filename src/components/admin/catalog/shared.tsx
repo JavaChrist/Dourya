@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { ArrowLeft } from "lucide-react";
 import { Notice } from "@/components/auth/FormParts";
-import type { CatalogAdminState } from "@/lib/catalog/admin-gate";
+import type { CatalogAdminMode, CatalogAdminState } from "@/lib/catalog/admin-gate";
 
 export const textareaClass =
   "mt-1.5 min-h-28 w-full rounded-2xl border-2 border-secondary/40 bg-white px-4 py-3 text-base text-ink focus:border-ink focus:outline-none aria-[invalid=true]:border-pink-strong";
@@ -40,9 +40,9 @@ export function AdminHeader({ title, back, children }: { title: string; back?: {
 }
 
 const REASON = {
-  "not-test-preview": "L'administration du catalogue est disponible uniquement sur la préversion stripe-test, avec la base de test dourya-test.",
+  "not-test-preview": "L'administration du catalogue est disponible sur dourya.fr et sur la préversion stripe-test (base dourya-test), pas sur ce déploiement.",
   database: "La base de test dourya-test n'est pas configurée pour cette préversion : aucune écriture n'est possible.",
-  bucket: "Le stockage des photos n'est pas configuré pour cette préversion : aucune écriture n'est possible.",
+  bucket: "Le stockage des photos n'est pas configuré pour ce déploiement : aucune écriture n'est possible.",
 } as const;
 
 export function CatalogClosed({ state }: { state: Extract<CatalogAdminState, { enabled: false }> }) {
@@ -53,10 +53,18 @@ export function CatalogClosed({ state }: { state: Extract<CatalogAdminState, { e
   );
 }
 
-export function DraftOnlyNotice() {
+export function DraftOnlyNotice({ mode }: { mode: CatalogAdminMode }) {
   return (
     <Notice tone="info">
-      Les fiches restent en <strong>brouillon</strong> : visibles uniquement sur cette préversion, jamais dans le panier, le sitemap ni la boutique publique. La vente reste fermée.
+      {mode === "production" ? (
+        <>
+          Les rubriques et les fiches préparées ici restent <strong>privées</strong> : visibles uniquement dans cette administration, jamais dans la boutique publique, le panier ni le sitemap. Les photos ne sont accessibles qu&apos;aux comptes administrateurs. La publication et la vente restent fermées.
+        </>
+      ) : (
+        <>
+          Les fiches restent en <strong>brouillon</strong> : visibles uniquement sur cette préversion, jamais dans le panier, le sitemap ni la boutique publique. La vente reste fermée.
+        </>
+      )}
     </Notice>
   );
 }
