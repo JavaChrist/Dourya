@@ -31,6 +31,9 @@ export const RATE_LIMITS = {
   "webhook:stripe": { limit: 300, windowMs: 60_000 },
   // Catalogue admin (dourya.fr and the stripe-test preview): category, product and photo writes per admin.
   "catalog:write": { limit: 200, windowMs: 15 * 60_000 },
+  // Mail Club: subscription start and cancellation per IP and per account.
+  "mailclub:subscribe": { limit: 10, windowMs: 15 * 60_000 },
+  "mailclub:cancel": { limit: 10, windowMs: 15 * 60_000 },
 } as const satisfies Record<string, RateLimitRule>;
 
 export type RateLimitAction = keyof typeof RATE_LIMITS;

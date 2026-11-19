@@ -161,8 +161,15 @@ export type StripeClient = {
 
 const EXPAND = "expand[]=payment_intent.latest_charge";
 
-export function createStripeClient(apiKey: string, fetchImpl: typeof fetch = fetch, timeoutMs = 10_000): StripeClient {
-  async function call(path: string, init: { method?: "GET" | "POST"; body?: string; idempotencyKey?: string } = {}): Promise<unknown> {
+export type StripeCall = (path: string, init?: { method?: "GET" | "POST"; body?: string; idempotencyKey?: string }) => Promise<unknown>;
+
+/**
+ * Authenticated call to the Stripe API, shared by the Checkout client below
+ * and the subscription client (stripe-subscriptions.ts). Errors become a
+ * StripeError (status, category, identifiers): never the raw message.
+ */
+export function createStripeCaller(apiKey: string, fetchImpl: typeof fetch = fetch, timeoutMs = 10_000): StripeCall {
+  return async function call(path, init = {}) {
     const headers: Record<string, string> = { Authorization: `Bearer ${apiKey}`, Accept: "application/json" };
     if (init.body) headers["Content-Type"] = "application/x-www-form-urlencoded";
     if (init.idempotencyKey) headers["Idempotency-Key"] = init.idempotencyKey;
@@ -186,8 +193,11 @@ export function createStripeClient(apiKey: string, fetchImpl: typeof fetch = fet
     } catch {
       throw new StripeError("bad_response", response.status);
     }
-  }
+  };
+}
 
+export function createStripeClient(apiKey: string, fetchImpl: typeof fetch = fetch, timeoutMs = 10_000): StripeClient {
+  const call = createStripeCaller(apiKey, fetchImpl, timeoutMs);
   return {
     async createCheckoutSession(input) {
       const body = encodeForm({

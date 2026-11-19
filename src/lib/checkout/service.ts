@@ -17,6 +17,7 @@ import type { PaymentView } from "@/lib/orders/payment-status";
 import type { StripeAccess } from "@/lib/payments/stripe";
 import { StripeError, isCheckoutSessionId, type CheckoutLine, type CheckoutSession, type CreateSessionInput } from "@/lib/payments/stripe-client";
 import { parseStripeEvent, verifyStripeSignature } from "@/lib/payments/stripe-webhook";
+import { handleSubscriptionEvent } from "@/lib/subscriptions/service";
 import type { OrderLineSnapshot } from "@/lib/orders/types";
 import type { ShippingSettings } from "@/lib/shipping/types";
 import type { Product } from "@/lib/types";
@@ -375,6 +376,14 @@ export async function handleStripeWebhook(raw: string, signature: string | null,
   if (event.kind === "ignored") {
     logEvent("stripe_webhook_ignored", { reason: "event_type" });
     return 200;
+  }
+  // Mail Club (Stripe Billing): its own flow, see subscriptions/service.ts.
+  if (event.kind === "subscription" || event.kind === "invoice") {
+    if (!stripe.subscriptions) {
+      logEvent("stripe_webhook_unconfigured", { reason: "subscriptions" });
+      return 503;
+    }
+    return handleSubscriptionEvent(event, stripe.subscriptions, now);
   }
 
   let session: PaymentView;

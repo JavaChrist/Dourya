@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { MapPin, Package, ShieldCheck, UserRound } from "lucide-react";
+import { Gift, MapPin, Package, ShieldCheck, UserRound } from "lucide-react";
 import { Suspense } from "react";
 
 const links = [
   { href: "/mon-compte", label: "Profil", icon: UserRound },
   { href: "/mon-compte/commandes", label: "Commandes", icon: Package },
+  { href: "/mon-compte/abonnement", label: "Abonnement", icon: Gift },
   { href: "/mon-compte/adresses", label: "Adresses", icon: MapPin },
   { href: "/mon-compte/donnees", label: "Mes données", icon: ShieldCheck },
 ];

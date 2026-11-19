@@ -72,6 +72,13 @@ async function AdminContent() {
             Ouvrir le catalogue
           </Link>
         </Card>
+
+        <Card title="Mail Club">
+          <p className="text-ink-muted">Pack du mois, packs payés à envoyer et abonnés. Les paiements et résiliations sont gérés par Stripe.</p>
+          <Link href="/admin/mail-club" className={`${secondaryButton} mt-4`}>
+            Ouvrir le Mail Club
+          </Link>
+        </Card>
       </div>
     </>
   );

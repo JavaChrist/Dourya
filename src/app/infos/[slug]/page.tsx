@@ -4,21 +4,24 @@ import { notFound } from "next/navigation";
 import { infoPages } from "@/config/site";
 import { InfoPlaceholder } from "@/components/ui/InfoPlaceholder";
 
+/** The Mail Club has its own page (src/app/infos/mail-club). */
+const placeholderPages = infoPages.filter((p) => p.slug !== "mail-club");
+
 export function generateStaticParams() {
-  return infoPages.map((p) => ({ slug: p.slug }));
+  return placeholderPages.map((p) => ({ slug: p.slug }));
 }
 
 export async function generateMetadata({ params }: PageProps<"/infos/[slug]">): Promise<Metadata> {
   const { slug } = await params;
-  const page = infoPages.find((p) => p.slug === slug);
+  const page = placeholderPages.find((p) => p.slug === slug);
   if (!page) return { title: "Informations" };
   return { title: page.title, alternates: { canonical: `/infos/${page.slug}` } };
 }
 
-/** Contact, Mail Club and legal pages. Their real text must come from DOURYA. */
+/** Contact and legal pages. Their real text must come from DOURYA. */
 async function InfoContent({ params }: { params: PageProps<"/infos/[slug]">["params"] }) {
   const { slug } = await params;
-  const page = infoPages.find((p) => p.slug === slug);
+  const page = placeholderPages.find((p) => p.slug === slug);
   if (!page) notFound();
   return (
     <InfoPlaceholder title={page.title}>

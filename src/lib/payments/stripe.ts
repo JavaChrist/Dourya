@@ -1,5 +1,6 @@
 import "server-only";
-import { createStripeClient, stripeKeyMode, type StripeClient, type StripeMode } from "./stripe-client";
+import { createStripeCaller, createStripeClient, stripeKeyMode, type StripeClient, type StripeMode } from "./stripe-client";
+import { createSubscriptionClient, type SubscriptionClient } from "./stripe-subscriptions";
 
 /**
  * Server access to Stripe. The secret key (STRIPE_SECRET_KEY) and the webhook
@@ -7,7 +8,8 @@ import { createStripeClient, stripeKeyMode, type StripeClient, type StripeMode }
  * module (not logged, not sent to the browser). No publishable key is needed:
  * the customer pays on the Stripe-hosted Checkout page.
  */
-export type StripeAccess = { client: StripeClient; mode: StripeMode };
+/** `subscriptions`: Stripe Billing (Mail Club). Optional so the checkout test fakes need not provide it. */
+export type StripeAccess = { client: StripeClient; mode: StripeMode; subscriptions?: SubscriptionClient };
 
 export function stripeMode(): StripeMode | null {
   return stripeKeyMode(process.env.STRIPE_SECRET_KEY);
@@ -18,7 +20,7 @@ export function getStripe(): StripeAccess | null {
   const key = process.env.STRIPE_SECRET_KEY?.trim();
   const mode = stripeKeyMode(key);
   if (!key || !mode) return null;
-  return { client: createStripeClient(key), mode };
+  return { client: createStripeClient(key), mode, subscriptions: createSubscriptionClient(createStripeCaller(key)) };
 }
 
 /** Webhook signing secret, null when missing or malformed. */

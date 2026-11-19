@@ -44,6 +44,18 @@ describe("parseStripeEvent", () => {
     expect(parseStripeEvent(ev("charge.refunded", { id: "ch_1", payment_intent: "pi_123" }))).toEqual({ kind: "payment_intent", type: "charge.refunded", paymentIntentId: "pi_123" });
   });
 
+  it("keeps the subscription and invoice ids of Mail Club events", () => {
+    for (const type of ["customer.subscription.created", "customer.subscription.updated", "customer.subscription.deleted"]) {
+      expect(parseStripeEvent(ev(type, { id: "sub_123" }))).toEqual({ kind: "subscription", type, subscriptionId: "sub_123" });
+    }
+    for (const type of ["invoice.paid", "invoice.payment_failed"]) {
+      expect(parseStripeEvent(ev(type, { id: "in_123" }))).toEqual({ kind: "invoice", type, invoiceId: "in_123" });
+    }
+    expect(parseStripeEvent(ev("customer.subscription.updated", { id: "cus_1" }))).toMatchObject({ kind: "ignored" });
+    expect(parseStripeEvent(ev("invoice.paid", { id: "sub_1" }))).toMatchObject({ kind: "ignored" });
+    expect(parseStripeEvent(ev("invoice.created", { id: "in_1" }))).toEqual({ kind: "ignored", type: "invoice.created" });
+  });
+
   it("ignores other events, bad ids and invalid JSON", () => {
     expect(parseStripeEvent(ev("customer.created", { id: "cus_1" }))).toEqual({ kind: "ignored", type: "customer.created" });
     expect(parseStripeEvent(ev("checkout.session.completed", { id: "../x" }))).toMatchObject({ kind: "ignored" });

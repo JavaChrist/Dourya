@@ -88,3 +88,20 @@ export const accountConfig = {
   /** Countries offered for addresses. To adjust in Lot 4 with the real shipping zones (not confirmed yet). */
   addressCountries: [{ code: "FR", name: "France" }],
 } as const;
+
+/**
+ * Mail Club: a different pack every month, sold as a monthly subscription
+ * (Stripe Billing) renewed on the anniversary date, delivery included, no
+ * commitment: the customer cancels from « Mon compte » and no further payment
+ * is taken (the month already paid is still sent). The price is sent to
+ * Stripe with each new subscription (no product to create in the dashboard);
+ * changing it here only applies to new subscribers.
+ * Sale gated like the checkout (checkoutSwitch): open on the stripe-test
+ * preview only until the go-live.
+ */
+export const mailClubConfig = {
+  productName: "Mail Club DOURYA",
+  priceCents: 1195,
+  /** Countries Stripe asks a delivery address in (ISO codes). */
+  shippingCountries: ["FR"],
+} as const;

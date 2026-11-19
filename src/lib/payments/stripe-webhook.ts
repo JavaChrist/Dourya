@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { isCheckoutSessionId, isPaymentIntentId } from "./stripe-client";
+import { isInvoiceId, isSubscriptionId } from "./stripe-subscriptions";
 
 /**
  * Stripe webhook signature, as documented for `Stripe-Signature`
@@ -36,11 +37,19 @@ export const HANDLED_EVENTS = [
   "checkout.session.async_payment_failed",
   "checkout.session.expired",
   "charge.refunded",
+  // Mail Club (Stripe Billing): subscription life and monthly invoices.
+  "customer.subscription.created",
+  "customer.subscription.updated",
+  "customer.subscription.deleted",
+  "invoice.paid",
+  "invoice.payment_failed",
 ] as const;
 
 export type StripeEventRef =
   | { kind: "session"; type: string; sessionId: string }
   | { kind: "payment_intent"; type: string; paymentIntentId: string }
+  | { kind: "subscription"; type: string; subscriptionId: string }
+  | { kind: "invoice"; type: string; invoiceId: string }
   | { kind: "ignored"; type: string | null };
 
 /**
@@ -62,6 +71,12 @@ export function parseStripeEvent(raw: string): StripeEventRef {
   if (type === "charge.refunded") {
     const pi = object?.payment_intent;
     return isPaymentIntentId(pi) ? { kind: "payment_intent", type, paymentIntentId: pi } : { kind: "ignored", type };
+  }
+  if (type.startsWith("customer.subscription.")) {
+    return isSubscriptionId(object?.id) ? { kind: "subscription", type, subscriptionId: object.id } : { kind: "ignored", type };
+  }
+  if (type.startsWith("invoice.")) {
+    return isInvoiceId(object?.id) ? { kind: "invoice", type, invoiceId: object.id } : { kind: "ignored", type };
   }
   return isCheckoutSessionId(object?.id) ? { kind: "session", type, sessionId: object.id } : { kind: "ignored", type };
 }
