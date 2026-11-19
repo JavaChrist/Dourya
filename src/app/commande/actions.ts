@@ -5,6 +5,7 @@ import { getSessionUser } from "@/lib/auth/dal";
 import { getListedProducts } from "@/lib/catalog";
 import { buildCheckout, checkoutGate, type GateReason } from "@/lib/checkout/build";
 import { placeOrder, type PlaceOrderErrorCode } from "@/lib/checkout/service";
+import { paymentMethods, type PaymentMethodBadge } from "@/lib/checkout/payment-methods";
 import { checkoutSwitch } from "@/lib/checkout/test-preview";
 import type { FieldErrors } from "@/lib/account/validation";
 import type { PricedLine } from "@/lib/cart/types";
@@ -23,6 +24,8 @@ export type CheckoutSummary = {
   cartChanged: boolean;
   /** null when payment may start; otherwise why the button stays disabled. */
   closedReason: string | null;
+  /** Methods shown under the button (display only). */
+  paymentMethods: PaymentMethodBadge[];
 };
 
 const GATE_MESSAGES: Record<GateReason, string> = {
@@ -55,6 +58,7 @@ export async function checkoutSummaryAction(items: unknown, country: unknown): P
     shippingProblem: draft.quote.available ? null : SHIPPING_MESSAGES[draft.quote.reason],
     cartChanged: draft.cartChanged,
     closedReason: gate ? GATE_MESSAGES[gate] : null,
+    paymentMethods: paymentMethods(process.env, keyMode),
   };
 }
 

@@ -1,4 +1,4 @@
-import { commerceConfig, paymentConfig } from "@/config/commerce";
+import { commerceConfig } from "@/config/commerce";
 import type { StripeMode } from "@/lib/payments/stripe-client";
 
 /**
@@ -41,8 +41,19 @@ export function isTestPreviewCheckout(env: Env, keyMode: StripeMode | null): boo
 
 export type CheckoutSwitch = { checkoutEnabled: boolean; allowDemoCheckoutInTestMode: boolean };
 
-/** Config values, or both on for the test preview (demo products, test key only). */
+/**
+ * Who may create a Stripe Checkout Session:
+ * - the test preview (above): open, demo products allowed, test key only;
+ * - real sales: only the production deployment (VERCEL_ENV = "production")
+ *   with a live key AND commerceConfig.checkoutEnabled. Any other preview,
+ *   local run or test key outside the test preview stays closed, even once
+ *   checkoutEnabled is true (previews would otherwise sell on "(default)").
+ * Demo products are never allowed outside the test preview.
+ * This only gates new sessions: the webhook keeps applying payments already
+ * started and refunds whatever this switch says.
+ */
 export function checkoutSwitch(env: Env, keyMode: StripeMode | null): CheckoutSwitch {
   if (isTestPreviewCheckout(env, keyMode)) return { checkoutEnabled: true, allowDemoCheckoutInTestMode: true };
-  return { checkoutEnabled: commerceConfig.checkoutEnabled, allowDemoCheckoutInTestMode: paymentConfig.allowDemoCheckoutInTestMode };
+  const realSales = env.VERCEL_ENV === "production" && keyMode === "live";
+  return { checkoutEnabled: realSales && commerceConfig.checkoutEnabled, allowDemoCheckoutInTestMode: false };
 }

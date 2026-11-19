@@ -1,5 +1,23 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { checkoutSwitch, firestoreDatabaseId, isTestPreviewCheckout } from "./test-preview";
+
+// commerceConfig.checkoutEnabled is false in the real config: flipped here only, per test.
+const config = vi.hoisted(() => ({ open: false }));
+vi.mock("@/config/commerce", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/config/commerce")>();
+  return {
+    ...actual,
+    commerceConfig: {
+      ...actual.commerceConfig,
+      get checkoutEnabled() {
+        return config.open;
+      },
+    },
+  };
+});
+afterEach(() => {
+  config.open = false;
+});
 
 const preview = { VERCEL_ENV: "preview", VERCEL_GIT_COMMIT_REF: "stripe-test", CHECKOUT_ENABLED: "true", FIRESTORE_DATABASE_ID: "dourya-test" };
 
@@ -31,10 +49,34 @@ describe("isTestPreviewCheckout", () => {
 });
 
 describe("checkoutSwitch", () => {
-  it("keeps the config values outside the test preview", () => {
-    expect(checkoutSwitch({ ...preview, VERCEL_ENV: "production" }, "test")).toEqual({ checkoutEnabled: false, allowDemoCheckoutInTestMode: false });
-  });
+  const closed = { checkoutEnabled: false, allowDemoCheckoutInTestMode: false };
+  const production = { VERCEL_ENV: "production", VERCEL_GIT_COMMIT_REF: "main" };
+
   it("opens checkout and demo products on the test preview", () => {
     expect(checkoutSwitch(preview, "test")).toEqual({ checkoutEnabled: true, allowDemoCheckoutInTestMode: true });
+  });
+
+  it("closed config: everything outside the test preview stays closed, live key included", () => {
+    expect(checkoutSwitch(production, "live")).toEqual(closed);
+    expect(checkoutSwitch(production, "test")).toEqual(closed);
+    expect(checkoutSwitch(production, null)).toEqual(closed);
+    expect(checkoutSwitch({ ...preview, VERCEL_ENV: "production" }, "test")).toEqual(closed);
+  });
+
+  it("open config: only production with a live key sells, never with demo products", () => {
+    config.open = true;
+    expect(checkoutSwitch(production, "live")).toEqual({ checkoutEnabled: true, allowDemoCheckoutInTestMode: false });
+  });
+
+  it("open config: other previews, local runs and test keys stay closed", () => {
+    config.open = true;
+    expect(checkoutSwitch(production, "test")).toEqual(closed);
+    expect(checkoutSwitch(production, null)).toEqual(closed);
+    expect(checkoutSwitch({ VERCEL_ENV: "preview", VERCEL_GIT_COMMIT_REF: "feature-x" }, "live")).toEqual(closed);
+    expect(checkoutSwitch({ VERCEL_ENV: "preview", VERCEL_GIT_COMMIT_REF: "feature-x" }, "test")).toEqual(closed);
+    expect(checkoutSwitch({ ...preview, FIRESTORE_DATABASE_ID: undefined }, "test")).toEqual(closed);
+    expect(checkoutSwitch(preview, "live")).toEqual(closed);
+    expect(checkoutSwitch({ VERCEL_ENV: "development" }, "live")).toEqual(closed);
+    expect(checkoutSwitch({}, "live")).toEqual(closed);
   });
 });

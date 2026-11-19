@@ -66,6 +66,21 @@ export const paymentConfig = {
    * to run the test scenarios before real products exist. Never with a live key.
    */
   allowDemoCheckoutInTestMode: false,
+  /**
+   * Payment methods shown in the checkout summary (display only: Stripe offers
+   * the methods enabled in its dashboard). Card is always shown. Apple Pay and
+   * Google Pay stay hidden on the public site until a real payment has been
+   * validated on compatible devices (Safari on iPhone/Mac with a card in
+   * Wallet; Chrome/Android with Google Pay); then set `shown` to true.
+   * `logo`: path under public/ of the OFFICIAL mark (Apple Pay Marketing
+   * Guidelines, Google Pay Brand Guidelines), never redrawn. null = the name
+   * is shown as text instead.
+   * The stripe-test preview shows them already, to check the layout.
+   */
+  display: {
+    applePay: { shown: false, logo: null as string | null },
+    googlePay: { shown: false, logo: null as string | null },
+  },
 } as const;
 
 export const accountConfig = {

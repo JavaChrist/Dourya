@@ -5,6 +5,7 @@ import { AlertTriangle, Lock, RefreshCw, ShoppingBag, Truck } from "lucide-react
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { checkoutSummaryAction, placeOrderAction, type CheckoutSummary } from "@/app/commande/actions";
 import { Field, Notice, inputClass } from "@/components/auth/FormParts";
+import { PaymentMethods } from "@/components/checkout/PaymentMethods";
 import { useCart } from "@/components/cart/CartProvider";
 import { accountConfig } from "@/config/commerce";
 import type { FieldErrors } from "@/lib/account/validation";
@@ -253,13 +254,14 @@ export function CheckoutForm({ defaultEmail }: { defaultEmail: string }) {
           className="mt-4 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-button px-6 font-display text-lg font-semibold text-button-ink shadow-[0_3px_0_rgba(43,18,32,0.25)] disabled:cursor-not-allowed disabled:bg-ink/10 disabled:text-ink/60 disabled:shadow-none"
         >
           <Lock aria-hidden className="size-5" />
-          {pending ? "Redirection vers le paiement…" : "Payer par carte"}
+          {pending ? "Redirection vers le paiement…" : "Continuer vers le paiement"}
         </button>
         {summary.closedReason ? (
           <p className="mt-2 text-center text-xs text-ink-muted">{summary.closedReason}</p>
         ) : (
-          <p className="mt-2 text-center text-xs text-ink-muted">Paiement sécurisé par carte sur la page de notre prestataire Stripe.</p>
+          <p className="mt-2 text-center text-xs text-ink-muted">Paiement sécurisé sur la page de notre prestataire Stripe.</p>
         )}
+        <PaymentMethods methods={summary.paymentMethods} />
       </aside>
     </form>
   );
