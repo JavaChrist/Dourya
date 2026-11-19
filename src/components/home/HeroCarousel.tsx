@@ -67,7 +67,7 @@ export function HeroCarousel({ config }: { config: AutoCarouselConfig }) {
               inert={i !== index}
               className="relative h-full w-full shrink-0"
             >
-              <SlideVisual slide={slide} sizes="(max-width: 1152px) 100vw, 1152px" priority={i === 0} />
+              <SlideVisual slide={slide} sizes="(max-width: 1152px) 100vw, 1152px" priority={i === 0} fit="cover" />
               <div className="absolute inset-x-0 bottom-0 flex items-end p-4 pb-14 sm:p-8 sm:pb-16">
                 <div className="max-w-md rounded-md bg-white p-5 shadow-lg sm:p-6">
                   {slide.isDemo && <DemoBadge className="mb-2" />}

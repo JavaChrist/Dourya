@@ -6,17 +6,20 @@ import { backgroundProps } from "./Section";
 
 /**
  * Shows the slide image, or a clearly labelled demo visual on a DOURYA
- * background when no real photo exists yet.
+ * background when no real photo exists yet. Product photos are shown whole
+ * (`contain`, on white); the home banners keep `cover`.
  */
 export function SlideVisual({
   slide,
   sizes,
   priority = false,
+  fit = "contain",
   className = "",
 }: {
   slide: Slide;
   sizes: string;
   priority?: boolean;
+  fit?: "contain" | "cover";
   className?: string;
 }) {
   if (slide.image) {
@@ -29,7 +32,7 @@ export function SlideVisual({
         priority={priority}
         // Draft photos (catalogue admin) are served to signed-in admins only: never through the optimizer.
         unoptimized={isUploadedPhotoUrl(slide.image.src)}
-        className={`object-cover ${className}`}
+        className={`${fit === "contain" ? "bg-white object-contain" : "object-cover"} ${className}`}
       />
     );
   }

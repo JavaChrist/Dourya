@@ -9,6 +9,7 @@ import { FormMessage, primaryButton, secondaryButton } from "@/components/accoun
 import { inputClass } from "@/components/auth/FormParts";
 import { isDraftPhotoUrl } from "@/lib/catalog/draft-photo-url";
 import type { ImageAsset } from "@/lib/types";
+import { useConfirm } from "@/components/ui/ConfirmDialog";
 import { resizePhoto } from "./resize";
 
 type Item = { name: string; status: "waiting" | "resizing" | "sending" | "done" | "error"; message?: string };
@@ -87,6 +88,7 @@ const iconButton = "inline-flex size-11 items-center justify-center rounded-full
 
 function PhotoCard({ productId, image, index, count }: { productId: string; image: ImageAsset; index: number; count: number }) {
   const [state, action, pending] = useActionState(editPhotoAction, idle);
+  const [ask, confirmDialog] = useConfirm();
   const hidden = (op: string) => (
     <>
       <input type="hidden" name="productId" value={productId} />
@@ -97,11 +99,12 @@ function PhotoCard({ productId, image, index, count }: { productId: string; imag
   return (
     <li className="space-y-2 rounded-2xl bg-white p-3 ring-1 ring-secondary/30">
       <div className="relative aspect-square overflow-hidden rounded-xl bg-surface-muted">
-        <Image src={image.src} alt={image.alt} fill sizes="(min-width: 640px) 220px, 45vw" className="object-cover" unoptimized={isDraftPhotoUrl(image.src)} />
+        <Image src={image.src} alt={image.alt} fill sizes="(min-width: 640px) 220px, 45vw" className="bg-white object-contain" unoptimized={isDraftPhotoUrl(image.src)} />
         {index === 0 && <span className="absolute left-2 top-2 rounded-full bg-white/90 px-2 py-0.5 text-xs font-bold text-ink">Couverture</span>}
         <span className="absolute bottom-2 right-2 rounded-full bg-white/90 px-2 py-0.5 text-xs font-bold text-ink">Photo {index + 1}</span>
       </div>
       <FormMessage state={state} />
+      {confirmDialog}
       <div className="flex flex-wrap gap-1.5">
         <form action={action}>
           {hidden("up")}
@@ -121,14 +124,26 @@ function PhotoCard({ productId, image, index, count }: { productId: string; imag
             <Star aria-hidden className="size-4" />
           </button>
         </form>
-        <form
-          action={action}
-          onSubmit={(e) => {
-            if (!window.confirm(isDraftPhotoUrl(image.src) ? "Retirer cette photo ? Elle sera supprimée." : "Retirer cette photo de la fiche ? Le fichier du site reste en place.")) e.preventDefault();
-          }}
-        >
+        <form action={action}>
           {hidden("delete")}
-          <button type="submit" disabled={pending} className={iconButton} aria-label="Retirer la photo">
+          <button
+            type="submit"
+            disabled={pending}
+            className={iconButton}
+            aria-label="Retirer la photo"
+            onClick={(e) => {
+              e.preventDefault();
+              const button = e.currentTarget;
+              void ask({
+                title: "Retirer cette photo ?",
+                message: isDraftPhotoUrl(image.src) ? "Elle sera supprimée de la fiche et du stockage." : "Elle est retirée de la fiche ; le fichier du site reste en place.",
+                confirmLabel: "Retirer",
+                tone: "danger",
+              }).then((ok) => {
+                if (ok) button.form?.requestSubmit(button);
+              });
+            }}
+          >
             <Trash2 aria-hidden className="size-4" />
           </button>
         </form>

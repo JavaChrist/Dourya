@@ -64,7 +64,8 @@ export function priceCart(input: unknown, products: Product[], options: PricingO
       unitPriceCents: null,
       lineTotalCents: 0,
       isDemo: product?.isDemo ?? false,
-      image: product?.images[0],
+      // The chosen model shows its own photo (when it is one of the product photos), else the cover.
+      image: product?.images.find((i) => variant?.imageSrc && i.src === variant.imageSrc) ?? product?.images[0],
       demoVisual: product?.demoVisuals?.[0],
     };
   }

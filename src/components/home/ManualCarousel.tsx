@@ -64,7 +64,7 @@ export function ManualCarousel({ config }: { config: ManualCarouselConfig }) {
           const card = (
             <>
               <div className="relative aspect-[4/5] overflow-hidden rounded-md">
-                <SlideVisual slide={slide} sizes="(max-width: 640px) 75vw, 280px" className="transition duration-300 group-hover:scale-105" />
+                <SlideVisual slide={slide} sizes="(max-width: 640px) 75vw, 280px" fit="cover" className="transition duration-300 group-hover:scale-105" />
               </div>
               <div className="mt-3 flex items-center gap-2">
                 <p className="font-display text-lg font-semibold text-ink">{slide.title}</p>

@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
+import { useActionState, type MouseEvent } from "react";
 import { Archive, CheckCircle2, CircleAlert, ExternalLink, Send, Undo2 } from "lucide-react";
 import { setProductStatusAction } from "@/app/admin/catalogue/actions";
 import type { FormState } from "@/app/mon-compte/actions";
 import { FormMessage, primaryButton, secondaryButton } from "@/components/account/ui";
 import type { PublishStatus } from "@/lib/types";
+import { useConfirm } from "@/components/ui/ConfirmDialog";
 import { STATUS_LABEL } from "./shared";
 
 const idle: FormState = { status: "idle" };
@@ -18,11 +19,21 @@ const idle: FormState = { status: "idle" };
  */
 export function PublishPanel({ productId, slug, status, missing, blocked }: { productId: string; slug: string; status: PublishStatus; missing: string[]; blocked?: string }) {
   const [state, action, pending] = useActionState(setProductStatusAction, idle);
+  const [ask, confirmDialog] = useConfirm();
   const ready = missing.length === 0 && !blocked;
+  // The click is stopped, then the same button submits the form once the modal says yes.
+  const confirmThen = (options: Parameters<typeof ask>[0]) => (e: MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    const button = e.currentTarget;
+    void ask(options).then((ok) => {
+      if (ok) button.form?.requestSubmit(button);
+    });
+  };
   return (
     <form action={action} className="space-y-4">
       <input type="hidden" name="productId" value={productId} />
       <FormMessage state={state} />
+      {confirmDialog}
       <p className="text-ink">
         Statut : <strong>{STATUS_LABEL[status]}</strong>
         {status === "published" && " · visible dans la boutique, la vente reste fermée"}
@@ -61,9 +72,11 @@ export function PublishPanel({ productId, slug, status, missing, blocked }: { pr
             disabled={!ready || pending}
             aria-disabled={!ready || pending}
             className={`${primaryButton} disabled:cursor-not-allowed`}
-            onClick={(e) => {
-              if (!window.confirm("Publier cette fiche ? Elle apparaîtra dans la boutique publique et dans le sitemap. La vente reste fermée.")) e.preventDefault();
-            }}
+            onClick={confirmThen({
+              title: "Publier cette fiche ?",
+              message: "Elle apparaîtra dans la boutique publique et dans le sitemap, avec ses photos. La vente reste fermée.",
+              confirmLabel: "Publier",
+            })}
           >
             <Send aria-hidden className="size-4" />
             Publier
@@ -82,9 +95,12 @@ export function PublishPanel({ productId, slug, status, missing, blocked }: { pr
             value="archived"
             disabled={pending}
             className={secondaryButton}
-            onClick={(e) => {
-              if (!window.confirm("Archiver cette fiche ? Elle quitte la boutique ; vous pourrez la repasser en brouillon.")) e.preventDefault();
-            }}
+            onClick={confirmThen({
+              title: "Archiver cette fiche ?",
+              message: "Elle quitte la boutique. Vous pourrez la repasser en brouillon.",
+              confirmLabel: "Archiver",
+              tone: "danger",
+            })}
           >
             <Archive aria-hidden className="size-4" />
             Archiver

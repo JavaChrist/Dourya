@@ -7,6 +7,7 @@ import type { FormState } from "@/app/mon-compte/actions";
 import { FormMessage, secondaryButton } from "@/components/account/ui";
 import { Field, SubmitButton } from "@/components/auth/FormParts";
 import type { Category, Product } from "@/lib/types";
+import { useConfirm } from "@/components/ui/ConfirmDialog";
 import { FieldError, labelClass, selectClass, textareaClass } from "./shared";
 
 const idle: FormState = { status: "idle" };
@@ -15,6 +16,7 @@ const euros = (cents: number | null) => (cents === null ? "" : (cents / 100).toF
 
 export function ProductForm({ product, categories }: { product?: Product; categories: Category[] }) {
   const [state, action, pending] = useActionState(saveProductAction, idle);
+  const [ask, confirmDialog] = useConfirm();
   const initialRows = Math.max(product?.variants.length ?? 0, 1);
   const [rows, setRows] = useState(Number(state.values?.variantCount ?? initialRows));
   // "Un modèle par photo": rows prefilled from the photos (remounted through `preset`), saved only on submit.
@@ -28,6 +30,7 @@ export function ProductForm({ product, categories }: { product?: Product; catego
   return (
     <form key={JSON.stringify(state.values ?? null)} action={action} className="space-y-5" noValidate>
       <FormMessage state={state} />
+      {confirmDialog}
       {product && <input type="hidden" name="id" value={product.id} />}
       <Field id="name" label="Nom du produit" required maxLength={80} defaultValue={v("name", product?.name)} error={e.name} />
       {product ? (
@@ -120,8 +123,13 @@ export function ProductForm({ product, categories }: { product?: Product; catego
             <button
               type="button"
               className={secondaryButton}
-              onClick={() => {
-                if (!window.confirm("Remplacer les options par un modèle par photo ? Rien n'est enregistré avant « Enregistrer la fiche ».")) return;
+              onClick={async () => {
+                const ok = await ask({
+                  title: "Un modèle par photo ?",
+                  message: "Les lignes actuelles sont remplacées par un modèle par photo. Rien n'est enregistré avant « Enregistrer la fiche ».",
+                  confirmLabel: "Remplacer",
+                });
+                if (!ok) return;
                 const list = images.slice(0, MAX_VARIANTS).map((img, n) => ({ name: `Modèle ${n + 1}`, image: img.src }));
                 setPreset((prev) => ({ version: (prev?.version ?? 0) + 1, for: state, rows: list }));
                 setRows(list.length);

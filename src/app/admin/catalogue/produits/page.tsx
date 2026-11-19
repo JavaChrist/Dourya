@@ -30,7 +30,7 @@ async function Content() {
             <li key={p.id}>
               <Link href={`/admin/catalogue/produits/${p.id}`} className="flex items-center gap-4 px-4 py-3 hover:bg-surface-muted">
                 <div className="relative size-14 shrink-0 overflow-hidden rounded-xl bg-surface-muted">
-                  {cover && <Image src={cover.src} alt="" fill sizes="56px" className="object-cover" unoptimized={isDraftPhotoUrl(cover.src)} />}
+                  {cover && <Image src={cover.src} alt="" fill sizes="56px" className="bg-white object-contain" unoptimized={isDraftPhotoUrl(cover.src)} />}
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-semibold text-ink">{p.name}</p>

@@ -38,6 +38,20 @@ describe("priceCart: server-side prices", () => {
     expect(cart.subtotalCents).toBe(6000);
   });
 
+  it("shows the photo of the chosen model, else the cover", () => {
+    const images = [1, 2, 3].map((n) => ({ src: `/p/${n}.jpg`, alt: `Photo ${n}`, width: 800, height: 800 }));
+    const p = product({
+      images,
+      variants: [variant({ id: "m1", imageSrc: "/p/1.jpg" }), variant({ id: "m3", imageSrc: "/p/3.jpg" }), variant({ id: "m9", imageSrc: "/elsewhere.jpg" }), variant({ id: "plain" })],
+    });
+    const cart = priceCart(
+      ["m3", "m1", "m9", "plain"].map((variantId) => ({ productId: "p1", variantId, quantity: 1 })),
+      [p],
+      opts,
+    );
+    expect(cart.lines.map((l) => l.image?.src)).toEqual(["/p/3.jpg", "/p/1.jpg", "/p/1.jpg", "/p/1.jpg"]);
+  });
+
   it("reports unknown, inactive and unpriced variants as unavailable", () => {
     const p = product({ variants: [variant({ id: "off", active: false }), variant({ id: "tbd", priceCents: null })] });
     const cart = priceCart(

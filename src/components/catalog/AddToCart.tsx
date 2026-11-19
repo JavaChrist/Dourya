@@ -140,7 +140,7 @@ export function AddToCart({
                   />
                   {v.imageSrc && (
                     <span className={`relative block size-14 shrink-0 overflow-hidden rounded-md ${v.soldOut ? "opacity-50 grayscale" : ""}`}>
-                      <Image src={v.imageSrc} alt="" fill sizes="56px" unoptimized={isUploadedPhotoUrl(v.imageSrc)} className="object-cover" />
+                      <Image src={v.imageSrc} alt="" fill sizes="56px" unoptimized={isUploadedPhotoUrl(v.imageSrc)} className="bg-white object-contain" />
                     </span>
                   )}
                   <span>
