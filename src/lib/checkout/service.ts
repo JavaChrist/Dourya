@@ -2,10 +2,20 @@ import "server-only";
 import { commerceConfig } from "@/config/commerce";
 import { validateAddress, type FieldErrors } from "@/lib/account/validation";
 import { errorCategory, errorCode, logEvent } from "@/lib/log";
-import { applyPaymentState, attachPayment, createOrderWithReservation, getOrder, releaseExpiredReservations } from "@/lib/orders/repository";
+import {
+  applyPaymentState,
+  attachPayment,
+  cancelDraft,
+  createOrderWithReservation,
+  flagOrder,
+  getOrder,
+  releaseExpiredReservations,
+  type DraftResolution,
+  type StoredPaymentRequest,
+} from "@/lib/orders/repository";
 import type { PaymentView } from "@/lib/orders/payment-status";
 import type { StripeAccess } from "@/lib/payments/stripe";
-import { StripeError, isCheckoutSessionId, type CheckoutLine, type CheckoutSession } from "@/lib/payments/stripe-client";
+import { StripeError, isCheckoutSessionId, type CheckoutLine, type CheckoutSession, type CreateSessionInput } from "@/lib/payments/stripe-client";
 import { parseStripeEvent, verifyStripeSignature } from "@/lib/payments/stripe-webhook";
 import type { OrderLineSnapshot } from "@/lib/orders/types";
 import type { ShippingSettings } from "@/lib/shipping/types";
@@ -78,6 +88,10 @@ function logStripeError(event: string, error: unknown) {
  * session re-read at Stripe (webhook, return page) marks an order paid.
  */
 export async function placeOrder(input: PlaceOrderInput, deps: PlaceOrderDeps): Promise<PlaceOrderResult> {
+  return placeOrderOnce(input, deps, true);
+}
+
+async function placeOrderOnce(input: PlaceOrderInput, deps: PlaceOrderDeps, mayRestart: boolean): Promise<PlaceOrderResult> {
   const now = deps.now ?? new Date();
   if (!commerceConfig.guestCheckoutEnabled && !deps.customer) return fail("login_required");
 
@@ -103,10 +117,15 @@ export async function placeOrder(input: PlaceOrderInput, deps: PlaceOrderDeps): 
   if (!draft.quote.available || !draft.shipping || draft.totalCents === null) return fail("shipping_unavailable");
   if (draft.totalCents !== input.expectedTotalCents) return fail("total_changed", { resetAttempt: true });
   const stripe = deps.stripe;
+  const shippingLabel = draft.shipping.label;
+
+  // Stripe wants expires_at at least 30 minutes after it receives the request:
+  // 5 minutes of margin. Only used for a new order; a retry replays the saved value.
+  const expiresAt = Math.floor(now.getTime() / 1000) + (Math.max(30, commerceConfig.stockReservationMinutes) + 5) * 60;
 
   // Opportunistic clean-up of expired holds (no cron): never blocks the checkout.
   try {
-    await releaseExpiredReservations((id) => stripe.client.getCheckoutSession(id), now, 10);
+    await releaseExpiredReservations((id) => stripe.client.getCheckoutSession(id), now, 10, (id, request) => resolveDraft(stripe, id, request, now));
   } catch (error) {
     logStripeError("checkout_sweep_failed", error);
   }
@@ -123,6 +142,18 @@ export async function placeOrder(input: PlaceOrderInput, deps: PlaceOrderDeps): 
     totalCents: draft.totalCents,
     holds: draft.holds,
     reservationMinutes: commerceConfig.stockReservationMinutes,
+    // Saved with the order before any call to Stripe: every retry of this
+    // attempt (lost response, double click, concurrent request) sends exactly
+    // this request again, so Stripe answers with the same session.
+    paymentRequest: (id) => ({
+      idempotencyKey: `${input.attemptKey}-${id}`,
+      expiresAt,
+      lines: draft.lines.map(toCheckoutLine),
+      shipping: { label: shippingLabel, amountCents: draft.shippingCents },
+      email,
+      successUrl: returnUrl(deps.origin, id),
+      cancelUrl: `${deps.origin}/commande`,
+    }),
     now,
   });
   if (created.kind === "out_of_stock") return fail("out_of_stock", { resetAttempt: true });
@@ -145,33 +176,30 @@ export async function placeOrder(input: PlaceOrderInput, deps: PlaceOrderDeps): 
     }
   }
 
-  // Stripe needs expires_at at least 30 minutes ahead, and an idempotency key
-  // replayed with other parameters is refused. Rounding expires_at to a
-  // 5-minute slot keeps a double click on the same session, while a retry
-  // later (after an outage) gets a fresh key with a valid expiry.
-  const slot = 300;
-  const expiresAt = Math.ceil((Math.floor(now.getTime() / 1000) + Math.max(30, commerceConfig.stockReservationMinutes) * 60 + 60) / slot) * slot;
-
-  let session: CheckoutSession;
-  try {
-    session = await stripe.client.createCheckoutSession({
-      orderId,
-      lines: draft.lines.map(toCheckoutLine),
-      shipping: { label: draft.shipping.label, amountCents: draft.shippingCents },
-      email,
-      successUrl: back,
-      cancelUrl: `${deps.origin}/commande`,
-      expiresAt,
-      // Same attempt (and slot) = same session at Stripe, even if two requests race here.
-      idempotencyKey: `${input.attemptKey}-${expiresAt}`,
-    });
-  } catch (error) {
-    logStripeError("checkout_payment_create_failed", error);
-    // The draft stays: retrying with the same attempt reuses it.
+  const request = created.paymentRequest;
+  if (!request) {
+    // Older draft saved without its request: nothing safe to replay.
+    logEvent("checkout_request_missing");
     return fail("payment_error");
   }
+  const outcome = await sendStoredRequest(stripe, orderId, request, now, created.kind === "existing");
+  if (outcome.kind === "uncertain") {
+    // The first request may still have created a session: keep the draft, its
+    // hold and its request. No new key is made until Stripe tells us more.
+    if (outcome.reviewCode) await flagOrder(orderId, outcome.reviewCode, "checkout", now);
+    return fail("payment_error");
+  }
+  if (outcome.kind === "none") {
+    // Proven: this request created no session and can no longer create one.
+    // The draft is closed and the same attempt starts a new order (new key).
+    await cancelDraft(orderId, now, "payment_request_failed");
+    if (!mayRestart) return fail("payment_error");
+    return placeOrderOnce(input, deps, false);
+  }
+  const session = outcome.session;
   // Stripe computes its own total from the lines: it must be ours to the cent.
-  if (session.amountCents !== draft.totalCents || session.currency.toUpperCase() !== "EUR" || session.orderId !== orderId || !session.url) {
+  // A session already paid or closed has no payment page any more.
+  if (session.amountCents !== draft.totalCents || session.currency.toUpperCase() !== "EUR" || session.orderId !== orderId || (session.status === "open" && !session.url)) {
     logEvent("checkout_session_mismatch");
     return fail("payment_error");
   }
@@ -194,8 +222,86 @@ export async function placeOrder(input: PlaceOrderInput, deps: PlaceOrderDeps): 
     logEvent("checkout_attach_refused", { reason: attached.kind === "refused" ? attached.reason : "not_found" });
     return fail("order_closed", { resetAttempt: true });
   }
+  if (session.status !== "open" || !session.url) {
+    // The original session, already paid (or closed) while its response was lost.
+    await applyPaymentState(orderId, session, "checkout", now);
+    return { kind: "redirect", url: back };
+  }
   logEvent("checkout_payment_created", { order: orderId });
   return { kind: "redirect", url: session.url };
+}
+
+/** Stripe keeps an idempotency key at least 24 h: 23 h to stay inside that window. */
+const KEY_RETENTION_MS = 23 * 3600_000;
+
+const toSessionInput = (orderId: string, r: StoredPaymentRequest): CreateSessionInput => ({
+  orderId,
+  lines: r.lines,
+  shipping: r.shipping,
+  email: r.email,
+  successUrl: r.successUrl,
+  cancelUrl: r.cancelUrl,
+  expiresAt: r.expiresAt,
+  idempotencyKey: r.idempotencyKey,
+});
+
+type SendOutcome = { kind: "session"; session: CheckoutSession } | { kind: "none" } | { kind: "uncertain"; reviewCode?: string };
+
+/**
+ * Sends the saved request (first send, or identical replay). For a key it
+ * already ran, Stripe answers with the ORIGINAL response (the session as it
+ * was at creation), so a replay is followed by a re-read of its current state.
+ */
+async function sendStoredRequest(stripe: StripeAccess, orderId: string, request: StoredPaymentRequest, now: Date, replay: boolean): Promise<SendOutcome> {
+  let session: CheckoutSession;
+  try {
+    session = await stripe.client.createCheckoutSession(toSessionInput(orderId, request));
+  } catch (error) {
+    logStripeError(replay ? "checkout_payment_replay_failed" : "checkout_payment_create_failed", error);
+    if (noSessionProven(error, request, now)) return { kind: "none" };
+    return now.getTime() - request.storedAtMs >= KEY_RETENTION_MS ? { kind: "uncertain", reviewCode: "payment_outcome_unknown" } : { kind: "uncertain" };
+  }
+  if (replay) {
+    try {
+      session = await stripe.client.getCheckoutSession(session.id);
+    } catch (error) {
+      // The session is known: it is attached all the same, its state comes later.
+      logStripeError("checkout_payment_reread_failed", error);
+    }
+  }
+  return { kind: "session", session };
+}
+
+/**
+ * The request can no longer lead to a payment only when ALL of these hold:
+ * - its expires_at has passed: a session made by it can no longer be paid;
+ * - Stripe refused the identical replay as a plain request error: it holds
+ *   no result for this key, so the first send created no session (a session
+ *   would have been replayed; a network cut, 5xx, 409 or 429 proves nothing);
+ * - the key is still inside Stripe's retention window, so that refusal is
+ *   about this key and not about a key Stripe has already forgotten.
+ * Neither the date nor a refusal of the date is enough on its own.
+ */
+function noSessionProven(error: unknown, request: StoredPaymentRequest, now: Date): boolean {
+  return (
+    error instanceof StripeError &&
+    error.category === "invalid_request" &&
+    error.detail?.type !== "idempotency_error" &&
+    Math.floor(now.getTime() / 1000) > request.expiresAt &&
+    now.getTime() - request.storedAtMs < KEY_RETENTION_MS
+  );
+}
+
+/** Sweep side of the same rule, for a draft whose customer never came back. */
+async function resolveDraft(stripe: StripeAccess, orderId: string, request: StoredPaymentRequest, now: Date): Promise<DraftResolution> {
+  const outcome = await sendStoredRequest(stripe, orderId, request, now, true);
+  if (outcome.kind !== "session") return outcome;
+  const s = outcome.session;
+  if (s.orderId !== orderId) {
+    logEvent("checkout_session_mismatch");
+    return { kind: "uncertain", reviewCode: "payment_id_mismatch" };
+  }
+  return { kind: "session", payment: s };
 }
 
 /**
@@ -290,6 +396,11 @@ export async function handleStripeWebhook(raw: string, signature: string | null,
     return 200;
   }
   try {
+    // A session whose creation response was lost: the order is still a draft
+    // without payment. Only this server creates sessions carrying an orderId
+    // (from the request saved with that order), so it is attached first.
+    const target = await getOrder(session.orderId);
+    if (target && target.paymentStatus === "draft" && !target.paymentRef) await attachPayment(session.orderId, session.id, now);
     const result = await applyPaymentState(session.orderId, session, "stripe_webhook", now);
     logEvent("stripe_webhook", { result: result.kind, ...(result.kind === "updated" ? { to: result.to } : {}), ...(result.kind === "anomaly" ? { code: result.code } : {}) });
     return 200;

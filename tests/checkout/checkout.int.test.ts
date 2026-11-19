@@ -82,6 +82,85 @@ describe("placeOrder", () => {
     expect((await getOrder(id))?.paymentStatus).toBe("awaiting_payment");
   });
 
+  it("lost Stripe response, retry of the same attempt in another 5-minute slot: one session only", async () => {
+    const stripe = fakeStripe();
+    // The session is created at Stripe, but the response is lost: the order stays a draft without paymentRef.
+    stripe.loseNextResponse();
+    expect(await placeOrder(order(), deps(stripe))).toMatchObject({ code: "payment_error" });
+    const id = await onlyOrderId();
+    expect(await getOrder(id)).toMatchObject({ paymentStatus: "draft" });
+    expect(stripe.created).toHaveLength(1);
+
+    // Same tab, same attempt, 6 minutes later: the saved request is replayed as is.
+    const later = new Date(T0.getTime() + 6 * 60_000);
+    stripe.setNow(later);
+    const res = await placeOrder(order(), deps(stripe, { now: later }));
+    expect(res).toEqual({ kind: "redirect", url: "https://checkout.stripe.com/c/pay/cs_test_fake1" });
+    expect(stripe.created).toHaveLength(1);
+    expect(await onlyOrderId()).toBe(id);
+    expect(await getOrder(id)).toMatchObject({ paymentStatus: "awaiting_payment", paymentRef: "cs_test_fake1" });
+    expect(await stock()).toMatchObject({ reserved: 1 });
+    // Replayed value for value: same key, same expires_at, same parameters.
+    expect(await adminDb().collection("orders").doc(id).get().then((d) => d.get("paymentRequest.idempotencyKey"))).toBe(`attempt-aaaaaaaaaaaa-${id}`);
+  });
+
+  it("lost Stripe response, two concurrent retries: same saved request, one session, one hold", async () => {
+    const stripe = fakeStripe();
+    stripe.loseNextResponse();
+    expect(await placeOrder(order(), deps(stripe))).toMatchObject({ code: "payment_error" });
+    const id = await onlyOrderId();
+
+    const later = new Date(T0.getTime() + 6 * 60_000);
+    stripe.setNow(later);
+    const [a, b] = await Promise.all([placeOrder(order(), deps(stripe, { now: later })), placeOrder(order(), deps(stripe, { now: later }))]);
+    expect(a).toEqual({ kind: "redirect", url: "https://checkout.stripe.com/c/pay/cs_test_fake1" });
+    expect(b).toEqual(a);
+    expect(stripe.created).toHaveLength(1);
+    expect(stripe.sessions.size).toBe(1);
+    expect(await onlyOrderId()).toBe(id);
+    expect(await getOrder(id)).toMatchObject({ paymentStatus: "awaiting_payment", paymentRef: "cs_test_fake1" });
+    expect(await stock()).toMatchObject({ stock: 1, reserved: 1 });
+  });
+
+  it("lost Stripe response, session paid meanwhile: the retry attaches it and records the payment", async () => {
+    const stripe = fakeStripe();
+    stripe.loseNextResponse();
+    expect(await placeOrder(order(), deps(stripe))).toMatchObject({ code: "payment_error" });
+    const id = await onlyOrderId();
+    // The customer paid on the session whose creation response we never got
+    // (Stripe would still replay that original "open" response for the key).
+    stripe.set("cs_test_fake1", { status: "paid" });
+
+    const later = new Date(T0.getTime() + 6 * 60_000);
+    stripe.setNow(later);
+    const res = await placeOrder(order(), deps(stripe, { now: later }));
+    expect(res).toEqual({ kind: "redirect", url: `${ORIGIN}/commande/retour?commande=${id}` });
+    expect(stripe.created).toHaveLength(1);
+    expect(stripe.sessions.size).toBe(1);
+    expect(await onlyOrderId()).toBe(id);
+    expect(await getOrder(id)).toMatchObject({ paymentStatus: "paid", paymentRef: "cs_test_fake1", stockState: "committed" });
+    // Sold once, no second hold.
+    expect(await stock()).toMatchObject({ stock: 0, reserved: 0 });
+    // A later click, the webhook and the return page change nothing more.
+    expect(await placeOrder(order(), deps(stripe, { now: later }))).toEqual(res);
+    expect(await webhook(stripe, completed())).toBe(200);
+    expect(await refreshOrderState(id, stripe.access, later)).toBe("paid");
+    expect(await stock()).toMatchObject({ stock: 0, reserved: 0 });
+    expect(stripe.created).toHaveLength(1);
+  });
+
+  it("lost Stripe response, paid, the customer never comes back: the webhook attaches the session", async () => {
+    const stripe = fakeStripe();
+    stripe.loseNextResponse();
+    expect(await placeOrder(order(), deps(stripe))).toMatchObject({ code: "payment_error" });
+    const id = await onlyOrderId();
+    stripe.set("cs_test_fake1", { status: "paid" });
+    expect(await webhook(stripe, completed())).toBe(200);
+    expect(await getOrder(id)).toMatchObject({ paymentStatus: "paid", paymentRef: "cs_test_fake1", stockState: "committed" });
+    expect((await getOrder(id))?.needsReview).toBeUndefined();
+    expect(await stock()).toMatchObject({ stock: 0, reserved: 0 });
+  });
+
   it("same tab after the hold expired: the stale attempt gets a new order and a single hold", async () => {
     const stripe = fakeStripe();
     stripe.fail(new StripeError("invalid_request", 400));
@@ -89,9 +168,22 @@ describe("placeOrder", () => {
     const first = await onlyOrderId();
     expect(await stock()).toMatchObject({ reserved: 1 });
 
-    // 31 minutes later, same attempt key (sessionStorage): the sweep cancels the
-    // old draft, the attempt is stale, a new order is created and paid normally.
-    const later = new Date(T0.getTime() + 31 * 60_000);
+    // 31 minutes later: the hold has expired but not the saved expires_at.
+    // Stripe refuses the replayed date, which alone proves nothing: the draft,
+    // its hold and its key stay, no new session or order.
+    const soon = new Date(T0.getTime() + 31 * 60_000);
+    stripe.setNow(soon);
+    expect(await placeOrder(order(), deps(stripe, { now: soon }))).toMatchObject({ code: "payment_error" });
+    expect(await onlyOrderId()).toBe(first);
+    expect((await getOrder(first))?.paymentStatus).toBe("draft");
+    expect(stripe.created).toHaveLength(0);
+    expect(await stock()).toMatchObject({ reserved: 1 });
+
+    // Once expires_at has passed, the identical replay is refused again within
+    // Stripe's key window: no session can exist. The sweep cancels the old
+    // draft, the attempt is stale, a new order (new key) is created.
+    const later = new Date(T0.getTime() + 36 * 60_000);
+    stripe.setNow(later);
     const res = await placeOrder(order(), deps(stripe, { now: later }));
     expect(res).toMatchObject({ kind: "redirect", url: "https://checkout.stripe.com/c/pay/cs_test_fake1" });
     expect((await getOrder(first))?.paymentStatus).toBe("cancelled");
@@ -99,6 +191,7 @@ describe("placeOrder", () => {
     expect(all.size).toBe(2);
     const second = all.docs.find((d) => d.id !== first)!;
     expect(second.get("paymentStatus")).toBe("awaiting_payment");
+    expect(stripe.created).toHaveLength(1);
     expect(stripe.created.at(-1)?.orderId).toBe(second.id);
     // Stock 1: the new hold fits only because the old one was released.
     expect(await stock()).toMatchObject({ stock: 1, reserved: 1 });

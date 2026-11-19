@@ -83,6 +83,43 @@ function mergeHolds(holds: StockHold[]): StockHold[] {
   return [...byKey].map(([key, quantity]) => ({ key, quantity }));
 }
 
+/**
+ * Everything needed to send the same Stripe Checkout request again, value for
+ * value: saved with the order, in its creation transaction, before the first
+ * call to Stripe. A retry (lost response, double click, concurrent request)
+ * replays it with the same idempotency key instead of building a new one.
+ */
+export type StoredPaymentRequest = {
+  idempotencyKey: string;
+  /** Unix seconds, sent as expires_at. */
+  expiresAt: number;
+  lines: { name: string; unitAmountCents: number; quantity: number }[];
+  shipping: { label: string; amountCents: number };
+  email: string;
+  successUrl: string;
+  cancelUrl: string;
+  /** When it was saved (ms): Stripe keeps an idempotency key at least 24 h. */
+  storedAtMs: number;
+};
+
+const isInt = (n: unknown): n is number => typeof n === "number" && Number.isInteger(n);
+
+function readPaymentRequest(v: unknown): StoredPaymentRequest | undefined {
+  if (!v || typeof v !== "object") return undefined;
+  const r = v as StoredPaymentRequest;
+  const ok =
+    typeof r.idempotencyKey === "string" &&
+    isInt(r.expiresAt) &&
+    Array.isArray(r.lines) &&
+    r.lines.every((l) => l && typeof l.name === "string" && isInt(l.unitAmountCents) && isInt(l.quantity)) &&
+    r.shipping && typeof r.shipping.label === "string" && isInt(r.shipping.amountCents) &&
+    typeof r.email === "string" &&
+    typeof r.successUrl === "string" &&
+    typeof r.cancelUrl === "string" &&
+    isInt(r.storedAtMs);
+  return ok ? r : undefined;
+}
+
 export type CreateOrderInput = {
   attemptKey: string;
   customerUid: string | null;
@@ -96,13 +133,15 @@ export type CreateOrderInput = {
   /** One hold per limited counter, with the catalogue value used if the counter does not exist yet. */
   holds: (StockHold & { initialStock: number })[];
   reservationMinutes: number;
+  /** Builds the Stripe request for the new order id (saved with the order). */
+  paymentRequest?: (orderId: string) => Omit<StoredPaymentRequest, "storedAtMs">;
   now?: Date;
 };
 
 export type CreateOrderResult =
-  | { kind: "created"; orderId: string }
-  /** Same attempt again (double click, reload): the first order is returned. */
-  | { kind: "existing"; orderId: string; paymentRef?: string }
+  | { kind: "created"; orderId: string; paymentRequest?: StoredPaymentRequest }
+  /** Same attempt again (double click, reload, concurrent call): the first order and its saved request. */
+  | { kind: "existing"; orderId: string; paymentRef?: string; paymentRequest?: StoredPaymentRequest }
   /** The attempt key was used for another content. */
   | { kind: "conflict" }
   | { kind: "out_of_stock"; keys: string[] }
@@ -147,7 +186,10 @@ export async function createOrderWithReservation(input: CreateOrderInput): Promi
       if (attempt.get("fingerprint") !== fingerprint) return { kind: "conflict" };
       const previous = await tx.get(orders().doc(attempt.get("orderId") as string));
       const stale = previous.exists && STALE_STATUSES.has(previous.get("paymentStatus")) && previous.get("stockState") === "released";
-      if (!stale) return { kind: "existing", orderId: attempt.get("orderId"), paymentRef: attempt.get("paymentRef") ?? undefined };
+      if (!stale) {
+        const paymentRequest = previous.exists ? readPaymentRequest(previous.get("paymentRequest")) : undefined;
+        return { kind: "existing", orderId: attempt.get("orderId"), paymentRef: attempt.get("paymentRef") ?? undefined, ...(paymentRequest ? { paymentRequest } : {}) };
+      }
     }
 
     const refs = holds.map((h) => inventory().doc(h.key));
@@ -169,6 +211,7 @@ export async function createOrderWithReservation(input: CreateOrderInput): Promi
     });
 
     const orderRef = orders().doc();
+    const paymentRequest: StoredPaymentRequest | undefined = input.paymentRequest ? { ...input.paymentRequest(orderRef.id), storedAtMs: now.getTime() } : undefined;
     tx.create(orderRef, {
       customerUid: input.customerUid,
       email: input.email,
@@ -186,13 +229,14 @@ export async function createOrderWithReservation(input: CreateOrderInput): Promi
       stockState: holds.length ? "held" : "released",
       reservationExpiresAt: Timestamp.fromMillis(now.getTime() + input.reservationMinutes * 60_000),
       attemptKey: input.attemptKey,
+      ...(paymentRequest ? { paymentRequest } : {}),
       createdAt: Timestamp.fromDate(now),
       updatedAt: Timestamp.fromDate(now),
     });
     // set, not create: a stale attempt is pointed at the new order.
     tx.set(attemptRef, { orderId: orderRef.id, fingerprint, createdAt: Timestamp.fromDate(now) });
     addEvent(tx, orderRef, { type: "created", source: "checkout", to: "draft", amountCents: input.totalCents }, now);
-    return { kind: "created", orderId: orderRef.id };
+    return { kind: "created", orderId: orderRef.id, ...(paymentRequest ? { paymentRequest } : {}) };
   });
 }
 
@@ -311,14 +355,27 @@ export async function applyPaymentState(orderId: string, payment: PaymentView, s
 }
 
 /**
- * Safety net for holds whose payment never notified. A draft without payment
- * is cancelled; an awaited payment is re-read at Stripe through `fetchPayment`
- * and applied as such (still open at Stripe = still held, no oversell).
+ * What Stripe says about a draft's saved request (see placeOrder):
+ * session = it created this session (current state re-read);
+ * none = proven that it created no session and can no longer create one;
+ * uncertain = not established yet (reviewCode once Stripe can no longer tell).
+ */
+export type DraftResolution = { kind: "session"; payment: PaymentView } | { kind: "none" } | { kind: "uncertain"; reviewCode?: string };
+
+/**
+ * Safety net for holds whose payment never notified. An awaited payment is
+ * re-read at Stripe through `fetchPayment` and applied as such (still open at
+ * Stripe = still held, no oversell). A draft whose Stripe request was sent
+ * (saved request, response lost) is resolved through `resolveDraft`: the
+ * session it created is attached and applied, the draft is cancelled only
+ * when no session can exist, and it stays held while that is uncertain. A
+ * draft without a saved request (older orders) is cancelled.
  */
 export async function releaseExpiredReservations(
   fetchPayment: (paymentRef: string) => Promise<PaymentView>,
   now = new Date(),
   limit = 50,
+  resolveDraft?: (orderId: string, request: StoredPaymentRequest) => Promise<DraftResolution>,
 ): Promise<{ checked: number; changed: number }> {
   const snap = await orders()
     .where("paymentStatus", "in", ["draft", "awaiting_payment"])
@@ -332,14 +389,47 @@ export async function releaseExpiredReservations(
     if (paymentRef) {
       const result = await applyPaymentState(doc.id, await fetchPayment(paymentRef), "system", now);
       if (result.kind === "updated") changed++;
-    } else if (await cancelDraft(doc.id, now)) {
-      changed++;
+      continue;
+    }
+    const request = readPaymentRequest(doc.get("paymentRequest"));
+    if (!request) {
+      if (await cancelDraft(doc.id, now)) changed++;
+      continue;
+    }
+    if (!resolveDraft) continue;
+    const resolution = await resolveDraft(doc.id, request);
+    if (resolution.kind === "session") {
+      const attached = await attachPayment(doc.id, resolution.payment.id, now);
+      const applied = await applyPaymentState(doc.id, resolution.payment, "system", now);
+      if (attached.kind === "attached" || applied.kind === "updated") changed++;
+    } else if (resolution.kind === "none") {
+      if (await cancelDraft(doc.id, now, "payment_request_failed")) changed++;
+    } else if (resolution.reviewCode) {
+      await flagOrder(doc.id, resolution.reviewCode, "system", now);
     }
   }
   return { checked: snap.size, changed };
 }
 
-async function cancelDraft(orderId: string, now: Date): Promise<boolean> {
+/** Marks an order for a human check, once (no repeated event). */
+export async function flagOrder(orderId: string, code: string, source: EventSource, now = new Date()): Promise<void> {
+  if (!DOC_ID.test(orderId)) return;
+  await db().runTransaction(async (tx) => {
+    const ref = orders().doc(orderId);
+    const snap = await tx.get(ref);
+    if (!snap.exists || snap.get("needsReview") === code) return;
+    tx.update(ref, { needsReview: code, updatedAt: Timestamp.fromDate(now) });
+    addEvent(tx, ref, { type: "anomaly", source, code }, now);
+  });
+}
+
+/**
+ * Cancels a draft that has no payment attached and gives its stock back. The
+ * caller must have established that no payment can come for it (hold expired
+ * without a sent request, or Stripe proved the request created no session).
+ */
+export async function cancelDraft(orderId: string, now: Date, code = "reservation_expired"): Promise<boolean> {
+  if (!DOC_ID.test(orderId)) return false;
   return db().runTransaction(async (tx) => {
     const ref = orders().doc(orderId);
     const snap = await tx.get(ref);
@@ -353,7 +443,7 @@ async function cancelDraft(orderId: string, now: Date): Promise<boolean> {
       if (s.exists) tx.update(holdRefs[i], { reserved: FieldValue.increment(-holds[i].quantity), updatedAt: stamp });
     });
     tx.update(ref, { paymentStatus: "cancelled", stockState: "released", updatedAt: stamp });
-    addEvent(tx, ref, { type: "payment_status", source: "system", from: "draft", to: "cancelled", code: "reservation_expired" }, now);
+    addEvent(tx, ref, { type: "payment_status", source: "system", from: "draft", to: "cancelled", code }, now);
     return true;
   });
 }

@@ -42,9 +42,14 @@ export const settings = (rates = true): ShippingSettings => ({
 /** In-memory Stripe: one Checkout Session per idempotency key, states changed by the test. */
 export function fakeStripe(mode: "test" | "live" = "test") {
   const sessions = new Map<string, CheckoutSession>();
-  const byKey = new Map<string, string>();
+  /** Like Stripe: a key already run answers with its ORIGINAL response, and only to the same parameters. */
+  const byKey = new Map<string, { params: string; reply: CheckoutSession }>();
   const created: CreateSessionInput[] = [];
   let failNext: StripeError | null = null;
+  /** The next session is created at Stripe but its response never reaches us (network cut). */
+  let loseNext = false;
+  /** Stripe's clock (unix s), once set: expires_at must then be at least 30 min ahead. */
+  let clockSec: number | null = null;
   const takeFailure = () => {
     if (failNext) {
       const e = failNext;
@@ -55,14 +60,24 @@ export function fakeStripe(mode: "test" | "live" = "test") {
   const client: StripeClient = {
     async createCheckoutSession(input) {
       takeFailure();
+      const params = JSON.stringify(input);
       const existing = byKey.get(input.idempotencyKey);
-      if (existing) return sessions.get(existing)!;
+      if (existing) {
+        if (existing.params !== params) throw new StripeError("invalid_request", 400, { type: "idempotency_error" });
+        return { ...existing.reply };
+      }
+      // Checked only for a new key, and not saved: a refused request leaves no result.
+      if (clockSec !== null && input.expiresAt < clockSec + 1800) throw new StripeError("invalid_request", 400, { type: "invalid_request_error", param: "expires_at" });
       created.push(input);
       const id = `cs_test_fake${sessions.size + 1}`;
       const amountCents = input.lines.reduce((sum, l) => sum + l.unitAmountCents * l.quantity, 0) + input.shipping.amountCents;
       const session: CheckoutSession = { id, status: "open", amountCents, currency: "eur", refundedCents: 0, orderId: input.orderId, url: `https://checkout.stripe.com/c/pay/${id}` };
       sessions.set(id, session);
-      byKey.set(input.idempotencyKey, id);
+      byKey.set(input.idempotencyKey, { params, reply: { ...session } });
+      if (loseNext) {
+        loseNext = false;
+        throw new StripeError("network", null);
+      }
       return session;
     },
     async getCheckoutSession(id) {
@@ -82,7 +97,7 @@ export function fakeStripe(mode: "test" | "live" = "test") {
     if (next.status !== "open") delete next.url;
     sessions.set(id, next);
   };
-  return { access: { client, mode } satisfies StripeAccess, sessions, created, set, fail: (e: StripeError) => (failNext = e) };
+  return { access: { client, mode } satisfies StripeAccess, sessions, created, set, fail: (e: StripeError) => (failNext = e), loseNextResponse: () => (loseNext = true), setNow: (d: Date) => (clockSec = Math.floor(d.getTime() / 1000)) };
 }
 
 // Fictitious webhook secret and signed events, as Stripe would send them.
