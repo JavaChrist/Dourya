@@ -65,6 +65,9 @@ service cloud.firestore {
     // - inventory/{key}: stock counters and units held by awaited payments;
     // - checkoutAttempts/{attemptKey}: double-click guard of the checkout;
     // - settings/{name}: shipping zones and rates entered in the admin.
+    // Catalogue admin (stripe-test preview, database dourya-test only), server only:
+    // - catalogCategories/{id}: rubriques created in the admin;
+    // - catalogProducts/{id}: draft product records (photos in Storage catalog-drafts/**).
 
     // Anything not listed above is refused.
     match /{document=**} {

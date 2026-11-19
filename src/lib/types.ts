@@ -71,7 +71,8 @@ export type MailClubConfig = {
 /** Lucide icon names allowed for categories (mapped in components/ui/CategoryIcon). */
 export type CategoryIconName = "print" | "sticker" | "keychain" | "headband" | "sparkles";
 
-export type ImageAsset = { src: string; alt: string; width: number; height: number };
+/** `storagePath`: set on the draft photos uploaded through the catalogue admin (Storage, catalog-drafts/**). */
+export type ImageAsset = { src: string; alt: string; width: number; height: number; storagePath?: string };
 
 export type SeoFields = { title?: string; description?: string };
 

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import Link from "next/link";
 import { LogOut } from "lucide-react";
 import { MarkDoneButton } from "@/components/admin/MarkDoneButton";
 import { Card, formatDate, secondaryButton } from "@/components/account/ui";
@@ -65,8 +66,11 @@ async function AdminContent() {
           </Card>
         )}
 
-        <Card title="À venir">
-          <p className="text-ink-muted">Gestion des produits, des commandes et des stocks : lots suivants.</p>
+        <Card title="Catalogue">
+          <p className="text-ink-muted">Rubriques, fiches en brouillon et photos (préversion stripe-test uniquement).</p>
+          <Link href="/admin/catalogue" className={`${secondaryButton} mt-4`}>
+            Ouvrir le catalogue
+          </Link>
         </Card>
       </div>
     </>

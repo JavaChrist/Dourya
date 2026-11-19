@@ -1,25 +1,47 @@
-import { categories } from "@/data/categories";
-import { collections } from "@/data/collections";
-import { products as demoProducts } from "@/data/products";
-import { realProducts } from "@/data/real-products";
 import type { Category, Collection, Product } from "@/lib/types";
+import { catalogAdminEnabled } from "./admin-gate";
 import { isDraftPreview } from "./draft-preview";
 import { createFixtureRepository } from "./fixture-repository";
+import { fixtures } from "./fixtures";
+import { mergeCategories, mergeProducts } from "./merge";
 import type { CatalogRepository } from "./repository";
 import { isListed, isShown, visibleCategories, visibleCollections } from "./visibility";
 
 /**
  * Public catalogue API used by pages and server actions.
- * To switch to Firestore, replace `repository` with a Firestore implementation
- * of CatalogRepository: nothing else changes.
- */
-export const repository: CatalogRepository = createFixtureRepository({ categories, collections, products: [...demoProducts, ...realProducts] });
+ *
+ * Fixtures (src/data) everywhere. On the stripe-test preview only (database
+ * `dourya-test`, see admin-gate.ts), the records written by the catalogue
+ * admin are merged on top (merge.ts: demo products stay untouched, stored
+ * products are always drafts). dourya.fr never reads Firestore for the
+ * catalogue.
+ *
+ * Fixture-only repository (kept for the tests and as the fallback). */
+export const repository: CatalogRepository = createFixtureRepository(fixtures);
+
+async function currentRepository(): Promise<CatalogRepository> {
+  if (!catalogAdminEnabled(process.env)) return repository;
+  try {
+    const { cachedStoredCatalog } = await import("./stored-catalog");
+    const stored = await cachedStoredCatalog();
+    return createFixtureRepository({
+      categories: mergeCategories(fixtures.categories, stored.categories),
+      collections: fixtures.collections,
+      products: mergeProducts(fixtures.products, stored.products),
+    });
+  } catch (error) {
+    // Loaded here: lib/log is server-only, and the fixture path stays importable by the unit tests.
+    const { errorCode, logEvent } = await import("@/lib/log");
+    logEvent("catalog_store_read_error", { code: errorCode(error) });
+    return repository;
+  }
+}
 
 /** Drafts visible here? Only on the stripe-test preview and in local dev (see draft-preview.ts). */
 const draftsShown = () => isDraftPreview(process.env);
 
 export async function getVisibleCategories(): Promise<Category[]> {
-  return visibleCategories(await repository.listCategories());
+  return visibleCategories(await (await currentRepository()).listCategories());
 }
 
 export async function getCategory(slug: string): Promise<Category | undefined> {
@@ -27,7 +49,7 @@ export async function getCategory(slug: string): Promise<Category | undefined> {
 }
 
 export async function getVisibleCollections(): Promise<Collection[]> {
-  return visibleCollections(await repository.listCollections());
+  return visibleCollections(await (await currentRepository()).listCollections());
 }
 
 export async function getCollection(slug: string): Promise<Collection | undefined> {
@@ -40,7 +62,7 @@ export async function getCollection(slug: string): Promise<Collection | undefine
  */
 export async function getListedProducts(): Promise<Product[]> {
   const cats = new Set((await getVisibleCategories()).map((c) => c.slug));
-  return (await repository.listProducts()).filter((p) => isListed(p, cats));
+  return (await (await currentRepository()).listProducts()).filter((p) => isListed(p, cats));
 }
 
 /**
@@ -50,7 +72,7 @@ export async function getListedProducts(): Promise<Product[]> {
 export async function getShownProducts(): Promise<Product[]> {
   const cats = new Set((await getVisibleCategories()).map((c) => c.slug));
   const drafts = draftsShown();
-  return (await repository.listProducts()).filter((p) => isShown(p, cats, drafts));
+  return (await (await currentRepository()).listProducts()).filter((p) => isShown(p, cats, drafts));
 }
 
 /**
@@ -59,7 +81,7 @@ export async function getShownProducts(): Promise<Product[]> {
  * draft preview a draft is returned, whatever its category.
  */
 export async function getProductForPage(slug: string): Promise<Product | undefined> {
-  const product = await repository.findProductBySlug(slug);
+  const product = await (await currentRepository()).findProductBySlug(slug);
   if (!product) return undefined;
   if (product.status === "draft") return draftsShown() ? product : undefined;
   const cats = new Set((await getVisibleCategories()).map((c) => c.slug));

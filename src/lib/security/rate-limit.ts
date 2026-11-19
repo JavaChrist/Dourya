@@ -29,6 +29,8 @@ export const RATE_LIMITS = {
   "checkout:place": { limit: 10, windowMs: 15 * 60_000 },
   "checkout:return": { limit: 60, windowMs: 15 * 60_000 },
   "webhook:stripe": { limit: 300, windowMs: 60_000 },
+  // Catalogue admin (stripe-test preview only): category, product and photo writes per admin.
+  "catalog:write": { limit: 200, windowMs: 15 * 60_000 },
 } as const satisfies Record<string, RateLimitRule>;
 
 export type RateLimitAction = keyof typeof RATE_LIMITS;
