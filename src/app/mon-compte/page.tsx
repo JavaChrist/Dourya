@@ -1,5 +1,6 @@
 import { Suspense } from "react";
-import { LogOut, MonitorSmartphone } from "lucide-react";
+import Link from "next/link";
+import { LayoutDashboard, LogOut, MonitorSmartphone } from "lucide-react";
 import { ConsentForm, ProfileForm } from "@/components/account/ProfileForms";
 import { Card, formatDate, secondaryButton } from "@/components/account/ui";
 import { getProfile } from "@/lib/account/repository";
@@ -11,6 +12,15 @@ async function ProfileContent() {
   const profile = await getProfile(user.uid, user.email);
   return (
     <div className="space-y-6">
+      {user.role === "admin" && (
+        <Card title="Administration">
+          <p className="text-ink-muted">Ce compte a accès à l&apos;administration de la boutique.</p>
+          <Link href="/admin" className={`${secondaryButton} mt-4`}>
+            <LayoutDashboard aria-hidden className="size-4" />
+            Ouvrir l&apos;administration
+          </Link>
+        </Card>
+      )}
       <Card title="Profil">
         <ProfileForm email={profile.email} displayName={profile.displayName} />
         {profile.createdAt && <p className="mt-4 text-sm text-ink-muted">Compte créé le {formatDate(profile.createdAt)}.</p>}

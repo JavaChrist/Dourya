@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { safeNext } from "./redirect";
+import { postSignInPath, safeNext } from "./redirect";
 
 describe("safeNext (open redirect protection)", () => {
   it("keeps a same-site relative path", () => {
@@ -13,5 +13,26 @@ describe("safeNext (open redirect protection)", () => {
   it("falls back on null and very long values", () => {
     expect(safeNext(null)).toBe("/mon-compte");
     expect(safeNext("/" + "a".repeat(600))).toBe("/mon-compte");
+  });
+});
+
+describe("postSignInPath (admin recognised by its role)", () => {
+  it("customer: the safe next path, /mon-compte by default", () => {
+    expect(postSignInPath("customer")).toBe("/mon-compte");
+    expect(postSignInPath("customer", "/panier")).toBe("/panier");
+    expect(postSignInPath("customer", "https://evil.test")).toBe("/mon-compte");
+  });
+
+  it("admin from the normal page: /admin, or the admin page asked for", () => {
+    expect(postSignInPath("admin")).toBe("/admin");
+    expect(postSignInPath("admin", "/mon-compte")).toBe("/admin");
+    expect(postSignInPath("admin", "/admin/catalogue")).toBe("/admin/catalogue");
+    expect(postSignInPath("admin", "/administrateur")).toBe("/admin");
+    expect(postSignInPath("admin", "//evil.test")).toBe("/admin");
+  });
+
+  it("admin from the admin page: same rule", () => {
+    expect(postSignInPath("admin")).toBe("/admin");
+    expect(postSignInPath("admin", "/admin/catalogue")).toBe("/admin/catalogue");
   });
 });

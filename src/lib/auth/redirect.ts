@@ -15,3 +15,15 @@ export function safeNext(value: string | null | undefined, fallback = "/mon-comp
     return fallback;
   }
 }
+
+/**
+ * Where to go after a successful sign-in. An admin is recognised by the role of
+ * the account (Firebase custom claim), whatever the form or the device: from the
+ * normal /connexion page too, it lands on /admin (or the /admin page it asked
+ * for). Customers keep the safe `next` path.
+ */
+export function postSignInPath(role: string, next?: string | null): string {
+  if (role !== "admin") return safeNext(next);
+  const target = safeNext(next, "/admin");
+  return target === "/admin" || target.startsWith("/admin/") || target.startsWith("/admin?") ? target : "/admin";
+}

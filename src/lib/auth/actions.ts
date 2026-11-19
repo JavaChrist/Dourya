@@ -9,7 +9,7 @@ import { errorCode, logEvent } from "@/lib/log";
 import { allowAction } from "@/lib/security/limit";
 import { SESSION_COOKIE, SESSION_COOKIE_NAMES, SESSION_MAX_AGE_SECONDS, type SessionScope } from "./config";
 import { getSession } from "./dal";
-import { safeNext } from "./redirect";
+import { postSignInPath } from "./redirect";
 import { startSession, type SessionAuth } from "./session-core";
 
 export type StartSessionResponse =
@@ -63,7 +63,7 @@ export async function startSessionAction(idToken: string, scope: SessionScope, n
     path: "/",
     maxAge: SESSION_MAX_AGE_SECONDS,
   });
-  return { ok: true, redirectTo: scope === "admin" ? "/admin" : safeNext(next) };
+  return { ok: true, redirectTo: postSignInPath(result.user.role, next) };
 }
 
 async function clearSessionCookies() {
