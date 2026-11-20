@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { STRIPE_API, acceptedKeyMode, StripeError, createStripeClient, encodeForm, isStripeCheckoutUrl, parseSession, stripeErrorDetail, stripeKeyMode } from "./stripe-client";
+import { STRIPE_API, acceptedKeyMode, StripeError, createStripeClient, encodeForm, isStripeCheckoutUrl, parseSession, stripeErrorDetail, stripeKeyIssue, stripeKeyMode } from "./stripe-client";
 
 // Fictitious key and ids: never a real Stripe value.
 const KEY = `sk_test_${"x".repeat(24)}`;
@@ -27,6 +27,24 @@ describe("stripeKeyMode", () => {
     expect(stripeKeyMode(`pk_test_${"x".repeat(24)}`)).toBeNull();
     expect(stripeKeyMode("sk_test_short")).toBeNull();
     expect(stripeKeyMode(undefined)).toBeNull();
+  });
+});
+
+describe("stripeKeyIssue", () => {
+  const tail = "x".repeat(24);
+  it("names why a key was refused, as a fixed category", () => {
+    expect(stripeKeyIssue(`sk_live_${tail}`)).toBeNull();
+    expect(stripeKeyIssue(` ${KEY}\n`)).toBeNull();
+    expect(stripeKeyIssue(undefined)).toBe("missing");
+    expect(stripeKeyIssue("   ")).toBe("missing");
+    expect(stripeKeyIssue(`pk_live_${tail}`)).toBe("publishable");
+    expect(stripeKeyIssue(`whsec_${tail}`)).toBe("webhook_secret");
+    expect(stripeKeyIssue(`"sk_live_${tail}"`)).toBe("quoted");
+    expect(stripeKeyIssue(`Bearer sk_live_${tail}`)).toBe("inner_whitespace");
+    expect(stripeKeyIssue(`STRIPE_SECRET_KEY=sk_live_${tail}`)).toBe("unknown_prefix");
+    expect(stripeKeyIssue(`sk_live_${tail.slice(0, 12)}\n${tail.slice(12)}`)).toBe("inner_whitespace");
+    expect(stripeKeyIssue("sk_live_short")).toBe("too_short");
+    expect(stripeKeyIssue(`sk_live_${tail}-x`)).toBe("unexpected_chars");
   });
 });
 

@@ -91,5 +91,6 @@ describe("readinessChecks", () => {
     expect(check({ ...ready, databaseId: "dourya-test" }, "database").ok).toBe(false);
     expect(check({ ...ready, siteOrigin: "http://localhost:3000" }, "site").ok).toBe(false);
     expect(check({ ...ready, keyMode: null }, "stripe_key").detail).toBe("Aucune clé valide.");
+    expect(check({ ...ready, keyMode: null, keyIssue: "publishable" }, "stripe_key").detail).toBe("Aucune clé valide : clé publiable (pk_) au lieu de la clé secrète (sk_).");
   });
 });

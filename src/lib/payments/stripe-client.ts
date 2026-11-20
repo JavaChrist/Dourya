@@ -20,6 +20,24 @@ export function stripeKeyMode(key: string | undefined): StripeMode | null {
   return match ? (match[1] as StripeMode) : null;
 }
 
+export type StripeKeyIssue = "missing" | "publishable" | "webhook_secret" | "quoted" | "inner_whitespace" | "unknown_prefix" | "too_short" | "unexpected_chars";
+
+/**
+ * Why stripeKeyMode refused a key, as a fixed category: never the key, any
+ * part of it, its length or the position of a character. null when accepted.
+ */
+export function stripeKeyIssue(key: string | undefined): StripeKeyIssue | null {
+  const k = key?.trim() ?? "";
+  if (!k) return "missing";
+  if (stripeKeyMode(k)) return null;
+  if (/^["'`]|["'`]$/.test(k)) return "quoted";
+  if (/^pk_(?:test|live)_/.test(k)) return "publishable";
+  if (k.startsWith("whsec_")) return "webhook_secret";
+  if (!/^(?:sk|rk)_(?:test|live)_/.test(k)) return /\s/.test(k) ? "inner_whitespace" : "unknown_prefix";
+  if (/\s/.test(k)) return "inner_whitespace";
+  return /[^A-Za-z0-9]/.test(k.replace(/^(?:sk|rk)_(?:test|live)_/, "")) ? "unexpected_chars" : "too_short";
+}
+
 /**
  * A live key is honoured only on the production deployment (VERCEL_ENV
  * "production"). Anywhere else (preview, local, tests) a live key is treated

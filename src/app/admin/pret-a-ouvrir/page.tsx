@@ -10,7 +10,7 @@ import { getListedProducts } from "@/lib/catalog";
 import { firestoreDatabaseId } from "@/lib/checkout/test-preview";
 import { readEmailConfig } from "@/lib/email/config";
 import { getShippingSettings } from "@/lib/orders/repository";
-import { stripeKeyMode } from "@/lib/payments/stripe-client";
+import { stripeKeyIssue, stripeKeyMode } from "@/lib/payments/stripe-client";
 import { stripeWebhookSecret } from "@/lib/payments/stripe";
 
 export const metadata: Metadata = { title: "Prêt à ouvrir" };
@@ -23,6 +23,7 @@ async function ReadinessContent() {
   const checks = readinessChecks({
     vercelEnv: process.env.VERCEL_ENV,
     keyMode: stripeKeyMode(process.env.STRIPE_SECRET_KEY),
+    keyIssue: stripeKeyIssue(process.env.STRIPE_SECRET_KEY),
     webhookSecretSet: stripeWebhookSecret() !== null,
     email: { mode: email.mode, missing: email.missing },
     allowLive: paymentConfig.allowLive,

@@ -1,4 +1,4 @@
-import type { StripeMode } from "@/lib/payments/stripe-client";
+import type { StripeKeyIssue, StripeMode } from "@/lib/payments/stripe-client";
 import type { ShippingSettings } from "@/lib/shipping/types";
 import type { Product } from "@/lib/types";
 
@@ -12,6 +12,8 @@ export type ReadinessInput = {
   vercelEnv: string | undefined;
   /** Mode of STRIPE_SECRET_KEY as written (before the production-only rule). */
   keyMode: StripeMode | null;
+  /** Why the key was refused (category only, never a value). */
+  keyIssue?: StripeKeyIssue | null;
   webhookSecretSet: boolean;
   email: { mode: "firebase" | "test" | "resend"; missing: string[] };
   allowLive: boolean;
@@ -34,6 +36,17 @@ export type ReadinessCheck = {
   detail: string;
   /** false: does not block the shop opening (e.g. the Mail Club). */
   required: boolean;
+};
+
+const KEY_ISSUE: Record<StripeKeyIssue, string> = {
+  missing: "variable vide ou absente sur ce déploiement.",
+  publishable: "clé publiable (pk_) au lieu de la clé secrète (sk_).",
+  webhook_secret: "secret de webhook (whsec_) au lieu de la clé secrète (sk_).",
+  quoted: "la valeur est entourée de guillemets.",
+  inner_whitespace: "espace ou retour à la ligne dans la valeur.",
+  unknown_prefix: "ne commence pas par sk_live_ ou rk_live_.",
+  too_short: "valeur trop courte (clé tronquée ?).",
+  unexpected_chars: "le préfixe est bon mais la suite contient des caractères inattendus.",
 };
 
 const sellable = (p: Product) =>
@@ -59,7 +72,14 @@ export function readinessChecks(input: ReadinessInput): ReadinessCheck[] {
       id: "stripe_key",
       label: "Clé Stripe live",
       ok: input.keyMode === "live",
-      detail: input.keyMode === "live" ? "Clé live configurée." : input.keyMode === "test" ? "Clé de test : paiements fictifs uniquement." : "Aucune clé valide.",
+      detail:
+        input.keyMode === "live"
+          ? "Clé live configurée."
+          : input.keyMode === "test"
+            ? "Clé de test : paiements fictifs uniquement."
+            : input.keyIssue
+              ? `Aucune clé valide : ${KEY_ISSUE[input.keyIssue]}`
+              : "Aucune clé valide.",
       required: true,
     },
     {
