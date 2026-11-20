@@ -4,8 +4,9 @@ import { notFound } from "next/navigation";
 import { infoPages } from "@/config/site";
 import { InfoPlaceholder } from "@/components/ui/InfoPlaceholder";
 
-/** The Mail Club has its own page (src/app/infos/mail-club). */
-const placeholderPages = infoPages.filter((p) => p.slug !== "mail-club");
+/** Pages with their own route: src/app/infos/mail-club and src/app/infos/cgv. */
+const OWN_ROUTE = new Set(["mail-club", "cgv"]);
+const placeholderPages = infoPages.filter((p) => !OWN_ROUTE.has(p.slug));
 
 export function generateStaticParams() {
   return placeholderPages.map((p) => ({ slug: p.slug }));
