@@ -101,4 +101,5 @@ export const footerLegal: NavItem[] = [
   { label: "CGV", href: "/infos/cgv" },
   { label: "Confidentialité", href: "/infos/confidentialite" },
   { label: "Livraison et retours", href: "/infos/livraison-retours" },
+  { label: "Rétractation", href: "/retractation" },
 ];

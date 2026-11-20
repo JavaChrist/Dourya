@@ -139,4 +139,13 @@ describe("createSubscriptionClient", () => {
     await expect(client.getSubscription("cus_1")).rejects.toThrow(StripeError);
     await expect(client.getInvoice("sub_1")).rejects.toThrow(StripeError);
   });
+
+  it("cancels at once with DELETE (withdrawal)", async () => {
+    const { call, calls } = fakeCall(() => subscription({ status: "canceled" }));
+    const client = createSubscriptionClient(call);
+    const view = await client.cancelNow("sub_abc");
+    expect(view.status).toBe("canceled");
+    expect(calls[0]).toMatchObject({ path: "/subscriptions/sub_abc?expand[]=customer", method: "DELETE" });
+    await expect(client.cancelNow("../x")).rejects.toThrow(StripeError);
+  });
 });

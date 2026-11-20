@@ -3,10 +3,11 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { ORDER_STATUS_LABEL } from "@/components/account/orderStatus";
-import { Card, formatDate } from "@/components/account/ui";
+import { Card, formatDate, secondaryButton } from "@/components/account/ui";
 import { getOrderForCustomer } from "@/lib/account/repository";
 import { requireUser } from "@/lib/auth/dal";
 import { formatPrice } from "@/lib/format";
+import { getWithdrawal, lookupOrderForWithdrawal } from "@/lib/withdrawals/repository";
 
 export const metadata: Metadata = { title: "Commande" };
 
@@ -16,6 +17,7 @@ async function OrderContent({ params }: { params: PageProps<"/mon-compte/command
   // Another customer's order and a missing order give the same 404.
   const order = await getOrderForCustomer(user.uid, id);
   if (!order) notFound();
+  const [withdrawal, eligible] = await Promise.all([getWithdrawal("order", id), lookupOrderForWithdrawal(id, { uid: user.uid })]);
   return (
     <Card title={`Commande du ${formatDate(order.createdAt)}`}>
       <p className="font-semibold text-ink">{ORDER_STATUS_LABEL[order.status] ?? order.status}</p>
@@ -46,6 +48,23 @@ async function OrderContent({ params }: { params: PageProps<"/mon-compte/command
           {order.shippingAddress.fullName}, {order.shippingAddress.line1}
           {order.shippingAddress.line2 ? `, ${order.shippingAddress.line2}` : ""}, {order.shippingAddress.postalCode} {order.shippingAddress.city}
         </address>
+      )}
+      {withdrawal ? (
+        <p className="mt-6 rounded-lg bg-surface-muted px-4 py-3 text-sm text-ink">
+          Rétractation reçue le {formatDate(withdrawal.receivedAt)}. L&apos;adresse de retour vous a été envoyée par e-mail.
+        </p>
+      ) : (
+        eligible.kind === "ok" && (
+          <div className="mt-6 border-t border-secondary/40 pt-4">
+            <p className="text-sm text-ink-muted">Vous disposez de 14 jours après la réception de votre commande pour vous rétracter.</p>
+            <Link
+              href={`/retractation?commande=${encodeURIComponent(id)}`}
+              className={`mt-2 ${secondaryButton}`}
+            >
+              Se rétracter du contrat ici
+            </Link>
+          </div>
+        )
       )}
       <Link href="/mon-compte/commandes" className="mt-6 inline-block font-bold text-link hover:underline">
         Retour aux commandes

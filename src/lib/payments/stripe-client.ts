@@ -161,7 +161,7 @@ export type StripeClient = {
 
 const EXPAND = "expand[]=payment_intent.latest_charge";
 
-export type StripeCall = (path: string, init?: { method?: "GET" | "POST"; body?: string; idempotencyKey?: string }) => Promise<unknown>;
+export type StripeCall = (path: string, init?: { method?: "GET" | "POST" | "DELETE"; body?: string; idempotencyKey?: string }) => Promise<unknown>;
 
 /**
  * Authenticated call to the Stripe API, shared by the Checkout client below

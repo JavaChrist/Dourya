@@ -34,6 +34,9 @@ export const RATE_LIMITS = {
   // Mail Club: subscription start and cancellation per IP and per account.
   "mailclub:subscribe": { limit: 10, windowMs: 15 * 60_000 },
   "mailclub:cancel": { limit: 10, windowMs: 15 * 60_000 },
+  /** Online withdrawal: order number + e-mail lookups (guessing), then the request itself. */
+  "withdrawal:lookup": { limit: 10, windowMs: 15 * 60_000 },
+  "withdrawal:submit": { limit: 5, windowMs: 60 * 60_000 },
 } as const satisfies Record<string, RateLimitRule>;
 
 export type RateLimitAction = keyof typeof RATE_LIMITS;

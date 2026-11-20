@@ -4,6 +4,7 @@ import { Gift } from "lucide-react";
 import { Card, formatDate } from "@/components/account/ui";
 import { Notice } from "@/components/auth/FormParts";
 import { CancelSubscription } from "@/components/mail-club/CancelSubscription";
+import { WithdrawSubscription } from "@/components/mail-club/WithdrawSubscription";
 import { ButtonLink } from "@/components/ui/ButtonLink";
 import { requireUser } from "@/lib/auth/dal";
 import { formatPrice } from "@/lib/format";
@@ -11,6 +12,7 @@ import { LIVE_STATUSES, type SubscriptionStatus } from "@/lib/payments/stripe-su
 import { getStripe } from "@/lib/payments/stripe";
 import { getUserSubscription, listUserDeliveries } from "@/lib/subscriptions/repository";
 import { confirmMailClubReturn } from "@/lib/subscriptions/service";
+import { getWithdrawal } from "@/lib/withdrawals/repository";
 
 export const metadata: Metadata = { title: "Abonnement" };
 
@@ -50,6 +52,7 @@ async function SubscriptionContent({ searchParams }: { searchParams: PageProps<"
 
   const live = LIVE_STATUSES.includes(sub.status);
   const end = formatDate(sub.currentPeriodEnd);
+  const withdrawal = await getWithdrawal("mail_club", sub.id);
   return (
     <div className="space-y-5">
       {sub.test && <Notice tone="info">Abonnement TEST : paiement Stripe de test, aucun prélèvement réel et aucun envoi.</Notice>}
@@ -98,6 +101,11 @@ async function SubscriptionContent({ searchParams }: { searchParams: PageProps<"
         <Notice tone="info">Résiliation enregistrée : aucun nouveau prélèvement. Le pack déjà payé vous sera envoyé.</Notice>
       )}
       {live && !sub.cancelAtPeriodEnd && <CancelSubscription endLabel={end || "la fin du mois payé"} />}
+      {withdrawal ? (
+        <Notice tone="info">Rétractation reçue le {formatDate(withdrawal.receivedAt)}. Nous revenons vers vous pour le remboursement.</Notice>
+      ) : (
+        live && <WithdrawSubscription />
+      )}
       {!live && (
         <ButtonLink href="/infos/mail-club" variant="alt" className="border-2 border-secondary">
           Me réabonner

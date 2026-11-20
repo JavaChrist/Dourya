@@ -186,7 +186,8 @@ export default function CgvPage() {
           <strong>premier pack</strong>. La résiliation de l’abonnement est également possible selon l’article 5.4.
         </p>
         <p>
-          Le client peut exercer son droit à l’aide de la fonctionnalité de rétractation en ligne de DOURYA, du
+          Le client peut exercer son droit à l’aide de la{" "}
+          <Internal href="/retractation">fonctionnalité de rétractation en ligne</Internal> de DOURYA, du
           formulaire type en annexe ou d’une déclaration sans ambiguïté adressée à <Mail />. Il renvoie les produits au
           plus tard <strong>14 jours après avoir communiqué sa décision</strong>, à Lizzie Grohens, DOURYA, {ADDRESS}.
           Les <strong>frais directs de retour en cas de rétractation</strong> sont à la charge du client.

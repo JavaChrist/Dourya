@@ -2,6 +2,7 @@ import type { ReactElement } from "react";
 import { render } from "@react-email/components";
 import ResetPassword, { resetPasswordDefaults, resetPasswordText } from "@/emails/ResetPassword";
 import VerifyEmail, { verifyEmailDefaults, verifyEmailText } from "@/emails/VerifyEmail";
+import WithdrawalReceived, { withdrawalReceivedDefaults, withdrawalReceivedText, type WithdrawalEmailProps } from "@/emails/WithdrawalReceived";
 import type { ActionEmailProps, BaseEmailProps } from "@/emails/_components/types";
 
 /**
@@ -32,7 +33,13 @@ export const EMAIL_TEMPLATES = {
     html: (p: ActionEmailProps) => <ResetPassword {...p} />,
     text: resetPasswordText,
   },
-} satisfies Record<string, Definition<ActionEmailProps>>;
+  "withdrawal-received": {
+    category: "transactional",
+    defaults: withdrawalReceivedDefaults,
+    html: (p: WithdrawalEmailProps) => <WithdrawalReceived {...p} />,
+    text: withdrawalReceivedText,
+  },
+} satisfies Record<string, Definition<ActionEmailProps> | Definition<WithdrawalEmailProps>>;
 
 export type EmailType = keyof typeof EMAIL_TEMPLATES;
 

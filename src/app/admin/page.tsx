@@ -79,6 +79,13 @@ async function AdminContent() {
             Ouvrir le Mail Club
           </Link>
         </Card>
+
+        <Card title="Rétractations">
+          <p className="text-ink-muted">Demandes de rétractation reçues en ligne (commandes et Mail Club) : délai, articles, remboursement à faire dans Stripe.</p>
+          <Link href="/admin/retractations" className={`${secondaryButton} mt-4`}>
+            Ouvrir les rétractations
+          </Link>
+        </Card>
       </div>
     </>
   );

@@ -33,7 +33,7 @@ export type FulfilmentStatus =
   | "returned";
 
 /** Who caused a change: every event of the journal says it. */
-export type EventSource = "checkout" | "stripe_webhook" | "return_page" | "admin" | "system";
+export type EventSource = "checkout" | "stripe_webhook" | "return_page" | "admin" | "system" | "customer";
 
 /** Snapshot taken at checkout: later catalogue changes never alter a placed order. */
 export type OrderLineSnapshot = {
@@ -106,7 +106,7 @@ export type OrderRecord = {
 };
 
 export type OrderEvent = {
-  type: "created" | "payment_status" | "fulfilment_status" | "refund" | "tracking" | "anomaly";
+  type: "created" | "payment_status" | "fulfilment_status" | "refund" | "tracking" | "anomaly" | "withdrawal";
   source: EventSource;
   from?: string | null;
   to?: string | null;

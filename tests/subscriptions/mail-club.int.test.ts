@@ -70,6 +70,12 @@ function fakeBilling() {
       s.cancelAtPeriodEnd = true;
       return { ...s };
     },
+    async cancelNow(id) {
+      const s = subs.get(id);
+      if (!s) throw notFound();
+      s.status = "canceled";
+      return { ...s };
+    },
   };
   const access: StripeAccess = { client: {} as StripeClient, mode: "test", subscriptions: client };
   return { client, access, subs, invoices, sessions, created };

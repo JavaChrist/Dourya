@@ -130,6 +130,8 @@ export type SubscriptionClient = {
   getInvoice(id: string): Promise<InvoiceView>;
   /** No further payment; the period already paid runs to its end. */
   cancelAtPeriodEnd(id: string, idempotencyKey: string): Promise<SubscriptionView>;
+  /** Stops the subscription at once (withdrawal): no further invoice. The refund is made apart, in Stripe. */
+  cancelNow(id: string): Promise<SubscriptionView>;
 };
 
 const EXPAND_CUSTOMER = "expand[]=customer";
@@ -183,6 +185,10 @@ export function createSubscriptionClient(call: StripeCall): SubscriptionClient {
       if (!isSubscriptionId(id)) throw new StripeError("not_found", null);
       const body = `cancel_at_period_end=true&${EXPAND_CUSTOMER}`;
       return parseSubscription(await call(`/subscriptions/${id}`, { method: "POST", body, idempotencyKey }));
+    },
+    async cancelNow(id) {
+      if (!isSubscriptionId(id)) throw new StripeError("not_found", null);
+      return parseSubscription(await call(`/subscriptions/${id}?${EXPAND_CUSTOMER}`, { method: "DELETE" }));
     },
   };
 }

@@ -56,3 +56,34 @@ describe("sanitizeOverride", () => {
     expect(sanitizeOverride(null)).toEqual({});
   });
 });
+
+describe("withdrawal-received", () => {
+  const DATA = {
+    name: "Client Exemple",
+    reference: "commande n° EXEMPLE-FICTIF",
+    receivedAtLabel: "20 novembre 2026 à 10:30",
+    items: [
+      { label: "Carnet A5 × 1", personalised: false },
+      { label: "Headband × 1", personalised: true },
+    ],
+    returnGoods: true,
+    returnByLabel: "4 décembre 2026",
+    subscriptionStopped: false,
+  };
+  it("gives the date, the items, the return address and the deadline, without unsubscribe link", async () => {
+    const mail = await renderEmail("withdrawal-received", DATA, BASE);
+    expect(mail.category).toBe("transactional");
+    for (const part of ["20 novembre 2026 à 10:30", "Carnet A5 × 1", "5, rue Maurice Fonvieille", "31120 Portet-sur-Garonne", "4 décembre 2026", "L. 221-28"]) {
+      expect(mail.text).toContain(part);
+      expect(mail.html).toContain(part);
+    }
+    expect(mail.html).not.toContain("ne-doit-pas-apparaitre");
+    const tables = mail.html.match(/<table[^>]*>/g) ?? [];
+    expect(tables.filter((tag) => /padding:\s*(?!0(?:[;"]|px[;"]))/.test(tag))).toEqual([]);
+  });
+  it("Mail Club: no return address, says the subscription is stopped", async () => {
+    const mail = await renderEmail("withdrawal-received", { ...DATA, items: [{ label: "Dopamine Mail Club", personalised: false }], returnGoods: false, subscriptionStopped: true }, BASE);
+    expect(mail.text).not.toContain("Maurice Fonvieille");
+    expect(mail.text).toContain("abonnement est arrêté");
+  });
+});
