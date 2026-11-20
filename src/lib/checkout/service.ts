@@ -17,6 +17,7 @@ import type { PaymentView } from "@/lib/orders/payment-status";
 import type { StripeAccess } from "@/lib/payments/stripe";
 import { StripeError, isCheckoutSessionId, type CheckoutLine, type CheckoutSession, type CreateSessionInput } from "@/lib/payments/stripe-client";
 import { parseStripeEvent, verifyStripeSignature } from "@/lib/payments/stripe-webhook";
+import { notifyOrder } from "@/lib/notifications/service";
 import { handleSubscriptionEvent } from "@/lib/subscriptions/service";
 import type { OrderLineSnapshot } from "@/lib/orders/types";
 import type { ShippingSettings } from "@/lib/shipping/types";
@@ -226,6 +227,7 @@ async function placeOrderOnce(input: PlaceOrderInput, deps: PlaceOrderDeps, mayR
   if (session.status !== "open" || !session.url) {
     // The original session, already paid (or closed) while its response was lost.
     await applyPaymentState(orderId, session, "checkout", now);
+    await notifyOrder(orderId, now);
     return { kind: "redirect", url: back };
   }
   logEvent("checkout_payment_created", { order: orderId });
@@ -329,7 +331,10 @@ export async function refreshOrderState(orderId: string, stripe: StripeAccess | 
   if (order.paymentRef && stripe && order.paymentStatus === "awaiting_payment") {
     try {
       const session = await stripe.client.getCheckoutSession(order.paymentRef);
-      if (session.orderId === orderId) await applyPaymentState(orderId, session, "return_page", now);
+      if (session.orderId === orderId) {
+        await applyPaymentState(orderId, session, "return_page", now);
+        await notifyOrder(orderId, now);
+      }
     } catch (error) {
       logStripeError("return_payment_reread_failed", error);
     }
@@ -417,6 +422,8 @@ export async function handleStripeWebhook(raw: string, signature: string | null,
     if (target && target.paymentStatus === "draft" && !target.paymentRef) await attachPayment(session.orderId, session.id, now);
     const result = await applyPaymentState(session.orderId, session, "stripe_webhook", now);
     logEvent("stripe_webhook", { result: result.kind, ...(result.kind === "updated" ? { to: result.to } : {}), ...(result.kind === "anomaly" ? { code: result.code } : {}) });
+    // E-mails due for the new state (confirmation, refund), each sent once. Never throws.
+    if (result.kind !== "not_found") await notifyOrder(session.orderId, now);
     return 200;
   } catch (error) {
     logEvent("stripe_webhook_failed", { error: errorCode(error), category: errorCategory(error) });

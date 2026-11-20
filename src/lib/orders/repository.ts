@@ -7,8 +7,8 @@ import { adminDb } from "@/lib/firebase/admin-db";
 import { validateShippingRate } from "@/lib/shipping/quote";
 import type { ShippingRate, ShippingSettings } from "@/lib/shipping/types";
 import { interpretPayment, type PaymentView } from "./payment-status";
-import { initialFulfilment, nextPaymentStatus } from "./transitions";
-import type { EventSource, OrderEvent, OrderLineSnapshot, OrderRecord, PaymentStatus, ShippingChoice, StockHold } from "./types";
+import { initialFulfilment, nextFulfilmentStatus, nextPaymentStatus } from "./transitions";
+import type { DeliveryProof, EventSource, FulfilmentStatus, OrderEvent, OrderLineSnapshot, OrderRecord, PaymentStatus, ShippingChoice, StockHold, TrackingInfo } from "./types";
 
 /**
  * Orders, stock holds and checkout attempts in Firestore (Admin SDK only:
@@ -481,4 +481,56 @@ export async function getShippingSettings(): Promise<ShippingSettings> {
     rates: Array.isArray(d.rates) ? d.rates.filter(isValidRate) : [],
     freeShippingThresholdCents: Number.isInteger(threshold) && (threshold as number) > 0 ? (threshold as number) : null,
   };
+}
+
+/** Latest orders, newest first (admin list). */
+export async function listRecentOrders(limit = 200): Promise<OrderRecord[]> {
+  const snap = await orders().orderBy("createdAt", "desc").limit(limit).get();
+  return snap.docs.map((d) => toOrderRecord(d.id, d.data()));
+}
+
+export type FulfilmentResult = { kind: "updated"; from: FulfilmentStatus | null; to: FulfilmentStatus } | { kind: "unchanged" } | { kind: "refused"; reason: string } | { kind: "not_found" };
+
+/**
+ * Admin fulfilment move (preparing, ready, shipped, delivered, returned), checked by
+ * nextFulfilmentStatus: "shipped" on a tracked service needs a tracking number,
+ * "delivered" needs a proof. The tracking given with "shipped" is saved in the
+ * same transaction; each change is journalled with the admin uid.
+ */
+export async function setFulfilmentStatus(
+  orderId: string,
+  target: FulfilmentStatus,
+  opts: { adminUid: string; tracking?: TrackingInfo; proof?: DeliveryProof },
+  now = new Date(),
+): Promise<FulfilmentResult> {
+  if (!DOC_ID.test(orderId)) return { kind: "not_found" };
+  return db().runTransaction(async (tx): Promise<FulfilmentResult> => {
+    const ref = orders().doc(orderId);
+    const snap = await tx.get(ref);
+    if (!snap.exists) return { kind: "not_found" };
+    const order = toOrderRecord(snap.id, snap.data()!);
+    const tracking = target === "shipped" && opts.tracking ? opts.tracking : order.tracking;
+    const move = nextFulfilmentStatus(order.fulfilmentStatus, target, {
+      paymentStatus: order.paymentStatus,
+      hasTracking: Boolean(tracking?.number),
+      trackedService: order.shipping.service === "tracked",
+      proof: opts.proof,
+    });
+    if (!move.ok) return { kind: "refused", reason: move.reason };
+    if (!move.changed) return { kind: "unchanged" };
+    const at = Timestamp.fromDate(now);
+    const update: Record<string, unknown> = { fulfilmentStatus: move.next, updatedAt: at };
+    if (target === "shipped" && opts.tracking) {
+      update.tracking = Object.fromEntries(Object.entries(opts.tracking).filter(([, v]) => v !== undefined));
+      addEvent(tx, ref, { type: "tracking", source: "admin", actorUid: opts.adminUid }, now);
+    }
+    tx.update(ref, update);
+    addEvent(
+      tx,
+      ref,
+      { type: "fulfilment_status", source: "admin", from: order.fulfilmentStatus, to: move.next, actorUid: opts.adminUid, code: opts.proof?.kind },
+      now,
+    );
+    return { kind: "updated", from: order.fulfilmentStatus, to: move.next };
+  });
 }

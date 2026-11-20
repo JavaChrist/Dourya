@@ -5,6 +5,7 @@ import { checkoutGate, type GateReason } from "@/lib/checkout/build";
 import { errorCategory, errorCode, logEvent } from "@/lib/log";
 import type { StripeAccess } from "@/lib/payments/stripe";
 import { StripeError } from "@/lib/payments/stripe-client";
+import { notifyMailClub } from "@/lib/notifications/service";
 import { LIVE_STATUSES, type SubscriptionClient } from "@/lib/payments/stripe-subscriptions";
 import type { StripeEventRef } from "@/lib/payments/stripe-webhook";
 import { getUserSubscription, recordDelivery, saveSubscription } from "./repository";
@@ -83,7 +84,7 @@ export async function confirmMailClubReturn(uid: string, sessionId: string, stri
     const session = await subs.getSubscriptionCheckout(sessionId);
     if (session.uid !== uid || !session.complete || !session.subscriptionId) return;
     const view = await subs.getSubscription(session.subscriptionId);
-    if (view.uid === uid) await saveSubscription(view, now);
+    if (view.uid === uid && (await saveSubscription(view, now))) await notifyMailClub(view, now);
   } catch (error) {
     // The webhook will save it anyway.
     logStripe("mail_club_return_failed", error);
@@ -104,6 +105,7 @@ export async function cancelMailClub(uid: string, stripe: StripeAccess | null, n
     if (view.uid !== uid) return "error";
     await saveSubscription(view, now);
     logEvent("mail_club_cancelled");
+    await notifyMailClub(view, now);
     return "ok";
   } catch (error) {
     logStripe("mail_club_cancel_failed", error);
@@ -147,6 +149,7 @@ export async function handleSubscriptionEvent(event: Extract<StripeEventRef, { k
       return 200;
     }
     const delivery = invoice && event.type === "invoice.paid" && invoice.paid ? await recordDelivery(invoice, view, now) : undefined;
+    await notifyMailClub(view, now);
     logEvent("stripe_webhook_subscription", { type: event.type, status: view.status, test: !view.livemode, ...(delivery ? { delivery } : {}) });
     return 200;
   } catch (error) {

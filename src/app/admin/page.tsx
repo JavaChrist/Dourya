@@ -66,6 +66,13 @@ async function AdminContent() {
           </Card>
         )}
 
+        <Card title="Commandes">
+          <p className="text-ink-muted">Commandes payées à fabriquer, préparer et expédier (numéro de suivi), statut des e-mails envoyés au client.</p>
+          <Link href="/admin/commandes" className={`${secondaryButton} mt-4`}>
+            Ouvrir les commandes
+          </Link>
+        </Card>
+
         <Card title="Catalogue">
           <p className="text-ink-muted">Rubriques, fiches produits et photos. Les nouvelles rubriques visibles apparaissent dans la boutique ; une fiche n&apos;y apparaît qu&apos;une fois complète et publiée. La vente reste fermée.</p>
           <Link href="/admin/catalogue" className={`${secondaryButton} mt-4`}>

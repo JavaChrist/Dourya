@@ -32,6 +32,8 @@ export type SubscriptionView = {
   shipping: ShippingAddress | null;
   /** false for an object of Stripe's test mode (test key): never a real payment. */
   livemode: boolean;
+  /** Start of the subscription (unix seconds), when Stripe gives it. */
+  startedAt?: number | null;
 };
 
 export type InvoiceView = { id: string; subscriptionId: string | null; paid: boolean; amountPaidCents: number; paidAt: number | null; livemode: boolean };
@@ -91,6 +93,7 @@ export function parseSubscription(body: unknown): SubscriptionView {
     priceCents: int(price?.unit_amount),
     shipping: parseShipping(customer?.shipping),
     livemode: b.livemode === true,
+    startedAt: int(b.start_date),
   };
 }
 

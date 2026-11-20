@@ -59,6 +59,10 @@ service cloud.firestore {
     match /emailTemplates/{type} {
       allow read, write: if false;
     }
+    // One document per order / Mail Club e-mail already claimed (sent once): server only.
+    match /emailNotifications/{key} {
+      allow read, write: if false;
+    }
 
     // Lot 4, server only (Admin SDK), refused here by the catch-all below:
     // - orders/{orderId}/events: order journal (payment, fulfilment, refund, anomaly);

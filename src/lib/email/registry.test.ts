@@ -87,3 +87,68 @@ describe("withdrawal-received", () => {
     expect(mail.text).toContain("abonnement est arrêté");
   });
 });
+
+describe("order and Mail Club e-mails (3 to 7)", () => {
+  const ADDRESS = ["Client Exemple", "1 rue Fictive", "00000 Ville", "France"];
+  const LINES = [{ label: "Carnet A5", quantity: 1, totalLabel: "9,90 €" }];
+  const cases = [
+    {
+      type: "order-confirmed",
+      data: {
+        name: "Client Exemple", orderId: "EXEMPLE-FICTIF", orderDateLabel: "20 novembre 2026", lines: LINES,
+        subtotalLabel: "9,90 €", shippingLabel: "Lettre suivie", shippingPriceLabel: "3,50 €", totalLabel: "13,40 €",
+        address: ADDRESS, madeToOrder: false, orderUrl: "https://dourya.fr/mon-compte/commandes/EXEMPLE-FICTIF",
+      },
+      parts: ["EXEMPLE-FICTIF", "Carnet A5", "13,40 €", "3,50 €", "1 rue Fictive", "https://dourya.fr/infos/cgv", "https://dourya.fr/retractation", "14 jours"],
+    },
+    {
+      type: "order-shipped",
+      data: {
+        name: "Client Exemple", orderId: "EXEMPLE-FICTIF", lines: [{ label: "Carnet A5", quantity: 1 }], address: ADDRESS,
+        carrier: "La Poste", trackingNumber: "1A00000000000", trackingUrl: "https://www.laposte.fr/outils/suivre-vos-envois?code=1A00000000000", orderUrl: null,
+      },
+      parts: ["EXEMPLE-FICTIF", "1A00000000000", "La Poste", "1 rue Fictive"],
+    },
+    {
+      type: "order-refunded",
+      data: { name: "Client Exemple", orderId: "EXEMPLE-FICTIF", amountLabel: "9,90 €", totalRefundedLabel: "9,90 €", full: true },
+      parts: ["EXEMPLE-FICTIF", "9,90 €"],
+    },
+    {
+      type: "mail-club-started",
+      data: { priceLabel: "11,95 €", nextChargeLabel: "20 décembre 2026", address: ADDRESS, manageUrl: "https://dourya.fr/mon-compte/abonnement" },
+      parts: ["11,95 €", "20 décembre 2026", "https://dourya.fr/mon-compte/abonnement", "https://dourya.fr/infos/cgv", "14 jours"],
+    },
+    {
+      type: "mail-club-cancelled",
+      data: { requestedAtLabel: "20 novembre 2026", endLabel: "20 décembre 2026", manageUrl: "https://dourya.fr/mon-compte/abonnement" },
+      parts: ["20 novembre 2026", "20 décembre 2026", "aucun nouveau prélèvement"],
+    },
+  ] as const;
+
+  for (const c of cases) {
+    it(`${c.type}: transactional, content present, no unsubscribe link, paddings on <td>`, async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const mail = await renderEmail(c.type, c.data as any, BASE);
+      expect(mail.category).toBe("transactional");
+      for (const part of c.parts) {
+        expect(mail.text).toContain(part);
+        expect(mail.html).toContain(part);
+      }
+      expect(mail.html).not.toContain("ne-doit-pas-apparaitre");
+      expect(mail.text).not.toContain("ne-doit-pas-apparaitre");
+      const tables = mail.html.match(/<table[^>]*>/g) ?? [];
+      expect(tables.filter((tag) => /padding:\s*(?!0(?:[;"]|px[;"]))/.test(tag))).toEqual([]);
+    });
+  }
+
+  it("order-shipped without tracking says so and has no tracking button", async () => {
+    const mail = await renderEmail(
+      "order-shipped",
+      { name: "Client Exemple", orderId: "EXEMPLE-FICTIF", lines: [{ label: "Carnet A5", quantity: 1 }], address: ADDRESS, carrier: null, trackingNumber: null, trackingUrl: null, orderUrl: null },
+      BASE,
+    );
+    expect(mail.text).toContain("pas de numéro de suivi");
+    expect(mail.html).not.toContain("Suivre mon colis");
+  });
+});

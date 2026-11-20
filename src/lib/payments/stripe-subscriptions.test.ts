@@ -19,6 +19,7 @@ const subscription = (over: Record<string, unknown> = {}) => ({
   id: "sub_abc",
   status: "active",
   cancel_at_period_end: false,
+  start_date: 1_797_000_000,
   metadata: { uid: "user_1", kind: "mail_club" },
   customer: { id: "cus_abc", shipping: { name: "Client Test", address: { line1: "1 rue Test", line2: null, postal_code: "75000", city: "Paris", country: "FR" } } },
   items: { data: [{ current_period_end: 1_800_000_000, price: { unit_amount: 1195 } }] },
@@ -37,8 +38,10 @@ describe("parseSubscription", () => {
       priceCents: 1195,
       shipping: { name: "Client Test", line1: "1 rue Test", postalCode: "75000", city: "Paris", country: "FR" },
       livemode: false,
+      startedAt: 1_797_000_000,
     });
     expect(parseSubscription(subscription({ livemode: true })).livemode).toBe(true);
+    expect(parseSubscription(subscription({ start_date: undefined })).startedAt).toBeNull();
   });
 
   it("reads the period on the subscription for older API versions", () => {

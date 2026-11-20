@@ -3,13 +3,18 @@ import { render } from "@react-email/components";
 import ResetPassword, { resetPasswordDefaults, resetPasswordText } from "@/emails/ResetPassword";
 import VerifyEmail, { verifyEmailDefaults, verifyEmailText } from "@/emails/VerifyEmail";
 import WithdrawalReceived, { withdrawalReceivedDefaults, withdrawalReceivedText, type WithdrawalEmailProps } from "@/emails/WithdrawalReceived";
+import OrderConfirmed, { orderConfirmedDefaults, orderConfirmedText, type OrderConfirmedProps } from "@/emails/OrderConfirmed";
+import OrderShipped, { orderShippedDefaults, orderShippedText, type OrderShippedProps } from "@/emails/OrderShipped";
+import OrderRefunded, { orderRefundedDefaults, orderRefundedText, type OrderRefundedProps } from "@/emails/OrderRefunded";
+import MailClubStarted, { mailClubStartedDefaults, mailClubStartedText, type MailClubStartedProps } from "@/emails/MailClubStarted";
+import MailClubCancelled, { mailClubCancelledDefaults, mailClubCancelledText, type MailClubCancelledProps } from "@/emails/MailClubCancelled";
 import type { ActionEmailProps, BaseEmailProps } from "@/emails/_components/types";
 
 /**
  * Typed list of the DOURYA e-mails.
  * - security / transactional: always sent (never blocked by a marketing unsubscribe).
  * - marketing: needs consent, honours suppressions, carries the unsubscribe headers.
- * Templates 3 to 7 (orders) arrive with lot 4, template 8 (newsletter) with its own lot.
+ * Template 8 (newsletter) arrives with its own lot.
  */
 export type EmailCategory = "security" | "transactional" | "marketing";
 
@@ -39,7 +44,46 @@ export const EMAIL_TEMPLATES = {
     html: (p: WithdrawalEmailProps) => <WithdrawalReceived {...p} />,
     text: withdrawalReceivedText,
   },
-} satisfies Record<string, Definition<ActionEmailProps> | Definition<WithdrawalEmailProps>>;
+  "order-confirmed": {
+    category: "transactional",
+    defaults: orderConfirmedDefaults,
+    html: (p: OrderConfirmedProps) => <OrderConfirmed {...p} />,
+    text: orderConfirmedText,
+  },
+  "order-shipped": {
+    category: "transactional",
+    defaults: orderShippedDefaults,
+    html: (p: OrderShippedProps) => <OrderShipped {...p} />,
+    text: orderShippedText,
+  },
+  "order-refunded": {
+    category: "transactional",
+    defaults: orderRefundedDefaults,
+    html: (p: OrderRefundedProps) => <OrderRefunded {...p} />,
+    text: orderRefundedText,
+  },
+  "mail-club-started": {
+    category: "transactional",
+    defaults: mailClubStartedDefaults,
+    html: (p: MailClubStartedProps) => <MailClubStarted {...p} />,
+    text: mailClubStartedText,
+  },
+  "mail-club-cancelled": {
+    category: "transactional",
+    defaults: mailClubCancelledDefaults,
+    html: (p: MailClubCancelledProps) => <MailClubCancelled {...p} />,
+    text: mailClubCancelledText,
+  },
+} satisfies Record<
+  string,
+  | Definition<ActionEmailProps>
+  | Definition<WithdrawalEmailProps>
+  | Definition<OrderConfirmedProps>
+  | Definition<OrderShippedProps>
+  | Definition<OrderRefundedProps>
+  | Definition<MailClubStartedProps>
+  | Definition<MailClubCancelledProps>
+>;
 
 export type EmailType = keyof typeof EMAIL_TEMPLATES;
 
