@@ -20,6 +20,17 @@ export function stripeKeyMode(key: string | undefined): StripeMode | null {
   return match ? (match[1] as StripeMode) : null;
 }
 
+/**
+ * A live key is honoured only on the production deployment (VERCEL_ENV
+ * "production"). Anywhere else (preview, local, tests) a live key is treated
+ * as absent, so a copied variable can never charge a real card from a
+ * preview. Test keys are accepted everywhere.
+ */
+export function acceptedKeyMode(mode: StripeMode | null, vercelEnv: string | undefined): StripeMode | null {
+  if (mode === "live" && vercelEnv !== "production") return null;
+  return mode;
+}
+
 export type StripeErrorCategory = "not_found" | "unauthorized" | "invalid_request" | "idempotency" | "rate_limited" | "unavailable" | "bad_response" | "network";
 
 /**

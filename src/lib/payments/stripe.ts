@@ -1,6 +1,7 @@
 import "server-only";
-import { createStripeCaller, createStripeClient, stripeKeyMode, type StripeClient, type StripeMode } from "./stripe-client";
+import { acceptedKeyMode, createStripeCaller, createStripeClient, stripeKeyMode, type StripeClient, type StripeMode } from "./stripe-client";
 import { createSubscriptionClient, type SubscriptionClient } from "./stripe-subscriptions";
+import { logEvent } from "@/lib/log";
 
 /**
  * Server access to Stripe. The secret key (STRIPE_SECRET_KEY) and the webhook
@@ -11,14 +12,21 @@ import { createSubscriptionClient, type SubscriptionClient } from "./stripe-subs
 /** `subscriptions`: Stripe Billing (Mail Club). Optional so the checkout test fakes need not provide it. */
 export type StripeAccess = { client: StripeClient; mode: StripeMode; subscriptions?: SubscriptionClient };
 
+/** Mode of the configured key; a live key outside production counts as none. */
 export function stripeMode(): StripeMode | null {
-  return stripeKeyMode(process.env.STRIPE_SECRET_KEY);
+  return acceptedKeyMode(stripeKeyMode(process.env.STRIPE_SECRET_KEY), process.env.VERCEL_ENV);
 }
 
-/** null when no valid key is configured. A live key is returned as such: the checkout gate decides. */
+/**
+ * null when no valid key is configured, or when the key is live outside the
+ * production deployment (logged without any value). A live key in production
+ * is returned as such: the checkout and Mail Club gates still decide.
+ */
 export function getStripe(): StripeAccess | null {
   const key = process.env.STRIPE_SECRET_KEY?.trim();
-  const mode = stripeKeyMode(key);
+  const raw = stripeKeyMode(key);
+  const mode = acceptedKeyMode(raw, process.env.VERCEL_ENV);
+  if (raw === "live" && !mode) logEvent("stripe_live_key_refused", { env: process.env.VERCEL_ENV ?? "local" });
   if (!key || !mode) return null;
   return { client: createStripeClient(key), mode, subscriptions: createSubscriptionClient(createStripeCaller(key)) };
 }

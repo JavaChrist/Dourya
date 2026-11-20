@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { STRIPE_API, StripeError, createStripeClient, encodeForm, isStripeCheckoutUrl, parseSession, stripeErrorDetail, stripeKeyMode } from "./stripe-client";
+import { STRIPE_API, acceptedKeyMode, StripeError, createStripeClient, encodeForm, isStripeCheckoutUrl, parseSession, stripeErrorDetail, stripeKeyMode } from "./stripe-client";
 
 // Fictitious key and ids: never a real Stripe value.
 const KEY = `sk_test_${"x".repeat(24)}`;
@@ -27,6 +27,20 @@ describe("stripeKeyMode", () => {
     expect(stripeKeyMode(`pk_test_${"x".repeat(24)}`)).toBeNull();
     expect(stripeKeyMode("sk_test_short")).toBeNull();
     expect(stripeKeyMode(undefined)).toBeNull();
+  });
+});
+
+describe("acceptedKeyMode", () => {
+  it("accepts a live key only on the production deployment", () => {
+    expect(acceptedKeyMode("live", "production")).toBe("live");
+    expect(acceptedKeyMode("live", "preview")).toBeNull();
+    expect(acceptedKeyMode("live", "development")).toBeNull();
+    expect(acceptedKeyMode("live", undefined)).toBeNull();
+  });
+  it("accepts a test key everywhere and keeps a missing key missing", () => {
+    expect(acceptedKeyMode("test", "production")).toBe("test");
+    expect(acceptedKeyMode("test", undefined)).toBe("test");
+    expect(acceptedKeyMode(null, "production")).toBeNull();
   });
 });
 

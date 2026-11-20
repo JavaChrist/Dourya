@@ -66,6 +66,13 @@ async function AdminContent() {
           </Card>
         )}
 
+        <Card title="Prêt à ouvrir">
+          <p className="text-ink-muted">Contrôle avant l&apos;ouverture de la vente : clés, e-mails, TVA, expédition, produits. Lecture seule, aucune clé affichée.</p>
+          <Link href="/admin/pret-a-ouvrir" className={`${secondaryButton} mt-4`}>
+            Voir le contrôle
+          </Link>
+        </Card>
+
         <Card title="Commandes">
           <p className="text-ink-muted">Commandes payées à fabriquer, préparer et expédier (numéro de suivi), statut des e-mails envoyés au client.</p>
           <Link href="/admin/commandes" className={`${secondaryButton} mt-4`}>
