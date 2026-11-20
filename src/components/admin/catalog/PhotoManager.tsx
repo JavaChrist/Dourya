@@ -8,15 +8,25 @@ import type { FormState } from "@/app/mon-compte/actions";
 import { FormMessage, primaryButton, secondaryButton } from "@/components/account/ui";
 import { inputClass } from "@/components/auth/FormParts";
 import { isDraftPhotoUrl } from "@/lib/catalog/draft-photo-url";
+import { isPackAdminPhotoUrl } from "@/lib/subscriptions/pack-photo-url";
 import type { ImageAsset } from "@/lib/types";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
 import { resizePhoto } from "./resize";
 
 type Item = { name: string; status: "waiting" | "resizing" | "sending" | "done" | "error"; message?: string };
+/** Server actions the manager calls: the catalogue ones by default, the Mail Club ones for monthly packs. */
+export type PhotoActions = {
+  upload: (form: FormData) => Promise<FormState>;
+  edit: (prev: FormState, form: FormData) => Promise<FormState>;
+};
+const CATALOG_ACTIONS: PhotoActions = { upload: uploadPhotoAction, edit: editPhotoAction };
+/** Photos stored by the site itself (deleted from storage with the fiche, served unoptimised). */
+const isStoredPhoto = (src: string) => isDraftPhotoUrl(src) || isPackAdminPhotoUrl(src);
+
 const STATUS = { waiting: "En attente", resizing: "Réduction…", sending: "Envoi…", done: "Ajoutée", error: "Échec" } as const;
 
 /** Several photos can be picked at once; they are reduced then sent one by one, each with its own status. */
-function Uploader({ productId, productName, remaining }: { productId: string; productName: string; remaining: number }) {
+function Uploader({ productId, productName, remaining, upload }: { productId: string; productName: string; remaining: number; upload: PhotoActions["upload"] }) {
   const input = useRef<HTMLInputElement>(null);
   const [items, setItems] = useState<Item[]>([]);
   const [busy, setBusy] = useState(false);
@@ -38,7 +48,7 @@ function Uploader({ productId, productName, remaining }: { productId: string; pr
         form.set("width", String(photo.width));
         form.set("height", String(photo.height));
         form.set("alt", productName);
-        const result = await uploadPhotoAction(form);
+        const result = await upload(form);
         set(i, result.status === "ok" ? { status: "done" } : { status: "error", message: result.message });
         if (result.status !== "ok" && result.message?.includes("n'est pas ouverte ici")) break;
       } catch {
@@ -86,8 +96,8 @@ function Uploader({ productId, productName, remaining }: { productId: string; pr
 const idle: FormState = { status: "idle" };
 const iconButton = "inline-flex size-11 items-center justify-center rounded-full border-2 border-secondary/50 bg-white text-ink transition hover:border-ink disabled:opacity-40";
 
-function PhotoCard({ productId, image, index, count }: { productId: string; image: ImageAsset; index: number; count: number }) {
-  const [state, action, pending] = useActionState(editPhotoAction, idle);
+function PhotoCard({ productId, image, index, count, edit }: { productId: string; image: ImageAsset; index: number; count: number; edit: PhotoActions["edit"] }) {
+  const [state, action, pending] = useActionState(edit, idle);
   const [ask, confirmDialog] = useConfirm();
   const hidden = (op: string) => (
     <>
@@ -99,7 +109,7 @@ function PhotoCard({ productId, image, index, count }: { productId: string; imag
   return (
     <li className="space-y-2 rounded-2xl bg-white p-3 ring-1 ring-secondary/30">
       <div className="relative aspect-square overflow-hidden rounded-xl border-2 border-secondary/40 bg-white">
-        <Image src={image.src} alt={image.alt} fill sizes="(min-width: 640px) 220px, 45vw" className="bg-white object-contain" unoptimized={isDraftPhotoUrl(image.src)} />
+        <Image src={image.src} alt={image.alt} fill sizes="(min-width: 640px) 220px, 45vw" className="bg-white object-contain" unoptimized={isStoredPhoto(image.src)} />
         {index === 0 && <span className="absolute left-2 top-2 rounded-full bg-white/90 px-2 py-0.5 text-xs font-bold text-ink">Couverture</span>}
         <span className="absolute bottom-2 right-2 rounded-full bg-white/90 px-2 py-0.5 text-xs font-bold text-ink">Photo {index + 1}</span>
       </div>
@@ -136,7 +146,7 @@ function PhotoCard({ productId, image, index, count }: { productId: string; imag
               const button = e.currentTarget;
               void ask({
                 title: "Retirer cette photo ?",
-                message: isDraftPhotoUrl(image.src) ? "Elle sera supprimée de la fiche et du stockage." : "Elle est retirée de la fiche ; le fichier du site reste en place.",
+                message: isStoredPhoto(image.src) ? "Elle sera supprimée de la fiche et du stockage." : "Elle est retirée de la fiche ; le fichier du site reste en place.",
                 confirmLabel: "Retirer",
                 tone: "danger",
               }).then((ok) => {
@@ -162,16 +172,28 @@ function PhotoCard({ productId, image, index, count }: { productId: string; imag
   );
 }
 
-export function PhotoManager({ productId, productName, images, max }: { productId: string; productName: string; images: ImageAsset[]; max: number }) {
+export function PhotoManager({
+  productId,
+  productName,
+  images,
+  max,
+  actions = CATALOG_ACTIONS,
+}: {
+  productId: string;
+  productName: string;
+  images: ImageAsset[];
+  max: number;
+  actions?: PhotoActions;
+}) {
   return (
     <div className="space-y-5">
-      <Uploader productId={productId} productName={productName} remaining={max - images.length} />
+      <Uploader productId={productId} productName={productName} remaining={max - images.length} upload={actions.upload} />
       {images.length === 0 ? (
         <p className="text-ink-muted">Aucune photo pour l&apos;instant.</p>
       ) : (
         <ol className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
           {images.map((image, i) => (
-            <PhotoCard key={image.src} productId={productId} image={image} index={i} count={images.length} />
+            <PhotoCard key={image.src} productId={productId} image={image} index={i} count={images.length} edit={actions.edit} />
           ))}
         </ol>
       )}

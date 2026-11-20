@@ -16,6 +16,12 @@ service firebase.storage {
       allow read, write: if false;
     }
 
+    // Photos of the Mail Club monthly packs: server only (Admin SDK), served by
+    // /admin/mail-club/photos/** and, once the pack is published, /mail-club/photos/**.
+    match /mail-club-packs/{allPaths=**} {
+      allow read, write: if false;
+    }
+
     match /{allPaths=**} {
       allow read, write: if false;
     }

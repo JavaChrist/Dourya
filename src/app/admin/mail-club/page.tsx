@@ -1,20 +1,70 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Suspense } from "react";
-import { Card, formatDate } from "@/components/account/ui";
-import { AdminHeader } from "@/components/admin/catalog/shared";
+import { Pencil } from "lucide-react";
+import { Card, formatDate, secondaryButton } from "@/components/account/ui";
+import { AdminHeader, CatalogClosed } from "@/components/admin/catalog/shared";
 import { MarkSentButton } from "@/components/admin/mail-club/MarkSentButton";
-import { PackForm } from "@/components/admin/mail-club/PackForm";
+import { NewPackForm } from "@/components/admin/mail-club/NewPackForm";
 import { requireAdmin } from "@/lib/auth/dal";
+import { catalogAdminState } from "@/lib/catalog/admin-gate";
 import { formatPrice } from "@/lib/format";
 import { LIVE_STATUSES } from "@/lib/payments/stripe-subscriptions";
-import { getMailClubPack, listDeliveries, listSubscriptions } from "@/lib/subscriptions/repository";
+import { packMonthLabel, splitPublished } from "@/lib/subscriptions/packs";
+import { listPacks } from "@/lib/subscriptions/packs-repository";
+import { listDeliveries, listSubscriptions } from "@/lib/subscriptions/repository";
 
 export const metadata: Metadata = { title: "Mail Club" };
 
-/** Pack of the month, packs to post (one per paid invoice) and subscriptions. No e-mail or uid shown. */
+/** Next month in Paris time, "YYYY-MM": the usual month to prepare. */
+function nextMonthId(now: Date): string {
+  const [y, m] = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Paris", year: "numeric", month: "2-digit" }).format(now).split("-").map(Number);
+  return m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, "0")}`;
+}
+
+/** Monthly fiches (one per month), with their status. */
+async function PackList() {
+  const state = catalogAdminState(process.env);
+  if (!state.enabled) return <CatalogClosed state={state} />;
+  const packs = await listPacks();
+  const { current } = splitPublished(packs);
+  return (
+    <div className="space-y-6">
+      <p className="text-ink">
+        Une fiche par mois (titre, texte, photos). Le pack <strong>publié</strong> le plus récent s&apos;affiche comme pack du mois sur la page Mail Club ; les autres packs publiés passent dans « Les packs précédents ». Un brouillon n&apos;est jamais visible.
+      </p>
+      <NewPackForm defaultMonth={nextMonthId(new Date())} />
+      {packs.length === 0 ? (
+        <p className="text-ink-muted">Aucune fiche pour l&apos;instant.</p>
+      ) : (
+        <ul className="divide-y divide-secondary/30">
+          {packs.map((p) => (
+            <li key={p.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
+              <div className="text-ink">
+                <p className="font-semibold">
+                  {packMonthLabel(p.id)} · {p.title}
+                </p>
+                <p className="text-sm text-ink-muted">
+                  {p.status === "published" ? (p.id === current?.id ? "Publié · pack du mois" : "Publié · packs précédents") : "Brouillon"} · {p.images.length} photo
+                  {p.images.length > 1 ? "s" : ""}
+                </p>
+              </div>
+              <Link href={`/admin/mail-club/packs/${p.id}`} className={secondaryButton} aria-label={`Modifier le pack ${packMonthLabel(p.id)}`}>
+                <Pencil aria-hidden className="size-4" />
+                Modifier
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+/** Monthly packs, packs to post (one per paid invoice) and subscriptions. No e-mail or uid shown. */
 async function MailClubAdmin() {
   await requireAdmin();
-  const [pack, toSend, subs] = await Promise.all([getMailClubPack(), listDeliveries("to_send"), listSubscriptions()]);
+  const [toSend, subs] = await Promise.all([listDeliveries("to_send"), listSubscriptions()]);
   const live = subs.filter((s) => LIVE_STATUSES.includes(s.status));
   const cancelling = live.filter((s) => s.cancelAtPeriodEnd).length;
 
@@ -22,8 +72,8 @@ async function MailClubAdmin() {
     <>
       <AdminHeader title="Mail Club" back={{ href: "/admin", label: "Administration" }} />
       <div className="mt-8 space-y-6">
-        <Card title="Pack du mois">
-          <PackForm pack={pack} />
+        <Card title="Packs du mois">
+          <PackList />
         </Card>
 
         <Card title={`Packs à envoyer (${toSend.length})`}>

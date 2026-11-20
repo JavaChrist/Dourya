@@ -71,7 +71,7 @@ service cloud.firestore {
     // Mail Club (Stripe Billing), server only:
     // - subscriptions/{subscriptionId}: copy of the Stripe subscription (uid, status, address);
     // - mailClubDeliveries/{invoiceId}: one pack to post per paid invoice;
-    // - settings/mailClub: pack of the month entered in the admin.
+    // - mailClubPacks/{YYYY-MM}: monthly pack fiches (title, text, photos) entered in the admin.
 
     // Anything not listed above is refused.
     match /{document=**} {

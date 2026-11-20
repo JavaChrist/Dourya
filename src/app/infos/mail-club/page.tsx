@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import { Suspense } from "react";
 import { connection } from "next/server";
 import { CalendarClock, Gift, Truck, XCircle } from "lucide-react";
@@ -11,7 +12,12 @@ import { checkoutSwitch } from "@/lib/checkout/test-preview";
 import { formatPrice } from "@/lib/format";
 import { LIVE_STATUSES } from "@/lib/payments/stripe-subscriptions";
 import { getStripe, stripeMode } from "@/lib/payments/stripe";
-import { getMailClubPack, getUserSubscription } from "@/lib/subscriptions/repository";
+import { catalogAdminEnabled } from "@/lib/catalog/admin-gate";
+import { errorCode, logEvent } from "@/lib/log";
+import { toPublicPackPhotoUrl } from "@/lib/subscriptions/pack-photo-url";
+import { type MailClubPack, packMonthLabel, splitPublished } from "@/lib/subscriptions/packs";
+import { listPacks } from "@/lib/subscriptions/packs-repository";
+import { getUserSubscription } from "@/lib/subscriptions/repository";
 import { mailClubGate } from "@/lib/subscriptions/service";
 
 export const metadata: Metadata = { title: "Mail Club", alternates: { canonical: "/infos/mail-club" } };
@@ -25,10 +31,70 @@ const points = [
   { icon: XCircle, text: "Sans engagement : résiliable à tout moment depuis votre compte." },
 ];
 
-/** Pack of the month and the customer's state: request-time data. */
+/** Published packs; the page still works (subscription block) if the read fails. */
+async function publishedPacks(): Promise<MailClubPack[]> {
+  if (!catalogAdminEnabled(process.env)) return [];
+  try {
+    return await listPacks();
+  } catch (error) {
+    logEvent("mail_club_packs_read_error", { code: errorCode(error) });
+    return [];
+  }
+}
+
+function PackGallery({ pack }: { pack: MailClubPack }) {
+  const [cover, ...rest] = pack.images;
+  if (!cover) return null;
+  return (
+    <div className="mt-4 space-y-3">
+      <div className="relative aspect-[4/3] overflow-hidden rounded-lg bg-white ring-1 ring-secondary/30">
+        <Image src={toPublicPackPhotoUrl(cover.src)} alt={cover.alt} fill sizes="(min-width: 768px) 720px, 100vw" className="object-contain" unoptimized priority />
+      </div>
+      {rest.length > 0 && (
+        <ul className="grid grid-cols-3 gap-3 sm:grid-cols-4">
+          {rest.map((image) => (
+            <li key={image.src} className="relative aspect-square overflow-hidden rounded-lg bg-white ring-1 ring-secondary/30">
+              <Image src={toPublicPackPhotoUrl(image.src)} alt={image.alt} fill sizes="(min-width: 640px) 170px, 30vw" className="object-contain" unoptimized />
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function PreviousPacks({ packs }: { packs: MailClubPack[] }) {
+  if (packs.length === 0) return null;
+  return (
+    <section aria-labelledby="packs-precedents" className="rounded-lg bg-white p-5 ring-1 ring-secondary/30 sm:p-6">
+      <h2 id="packs-precedents" className="font-display text-2xl font-semibold text-ink">
+        Les packs précédents
+      </h2>
+      <ul className="mt-4 grid gap-4 sm:grid-cols-2">
+        {packs.map((p) => (
+          <li key={p.id} className="overflow-hidden rounded-lg ring-1 ring-secondary/30">
+            {p.images[0] && (
+              <div className="relative aspect-[4/3] bg-white">
+                <Image src={toPublicPackPhotoUrl(p.images[0].src)} alt={p.images[0].alt} fill sizes="(min-width: 640px) 340px, 100vw" className="object-contain" unoptimized />
+              </div>
+            )}
+            <div className="space-y-1 p-4 text-ink">
+              <p className="text-sm font-semibold text-pink-strong">{packMonthLabel(p.id)}</p>
+              <h3 className="font-bold">{p.title}</h3>
+              <p className="line-clamp-4 whitespace-pre-line text-sm">{p.description}</p>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+/** Packs and the customer's state: request-time data. */
 async function MailClubLive() {
   await connection();
-  const [pack, user] = await Promise.all([getMailClubPack(), getSessionUser()]);
+  const [packs, user] = await Promise.all([publishedPacks(), getSessionUser()]);
+  const { current: pack, previous } = splitPublished(packs);
   const stripe = getStripe();
   const closed = mailClubGate(stripe, checkoutSwitch(process.env, stripeMode()));
   const current = user ? await getUserSubscription(user.uid) : null;
@@ -41,10 +107,14 @@ async function MailClubLive() {
           Le pack du mois
         </h2>
         {pack ? (
-          <div className="mt-3 space-y-2 text-ink">
-            <p className="font-bold">{pack.title}</p>
-            {pack.description && <p className="whitespace-pre-line">{pack.description}</p>}
-          </div>
+          <>
+            <div className="mt-3 space-y-2 text-ink">
+              <p className="text-sm font-semibold text-pink-strong">{packMonthLabel(pack.id)}</p>
+              <p className="font-bold">{pack.title}</p>
+              {pack.description && <p className="whitespace-pre-line">{pack.description}</p>}
+            </div>
+            <PackGallery pack={pack} />
+          </>
         ) : (
           <p className="mt-3 text-ink-muted">Le contenu du prochain pack sera annoncé bientôt.</p>
         )}
@@ -72,6 +142,8 @@ async function MailClubLive() {
           )}
         </div>
       </section>
+
+      <PreviousPacks packs={previous} />
     </>
   );
 }

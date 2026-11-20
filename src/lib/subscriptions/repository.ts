@@ -1,5 +1,5 @@
 import "server-only";
-import { FieldValue, Timestamp, type DocumentData } from "firebase-admin/firestore";
+import { Timestamp, type DocumentData } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebase/admin-db";
 import { LIVE_STATUSES, type InvoiceView, type ShippingAddress, type SubscriptionStatus, type SubscriptionView } from "@/lib/payments/stripe-subscriptions";
 
@@ -10,7 +10,7 @@ import { LIVE_STATUSES, type InvoiceView, type ShippingAddress, type Subscriptio
  *
  * subscriptions/{subscriptionId}     uid, status, period end, cancellation, delivery address
  * mailClubDeliveries/{invoiceId}     one pack to send per paid invoice ("to_send" -> "sent")
- * settings/mailClub                  the pack of the month (title, text), entered in the admin
+ * mailClubPacks/{YYYY-MM}           the monthly fiches (packs-repository.ts)
  */
 
 export type StoredSubscription = {
@@ -36,11 +36,8 @@ export type Delivery = {
   sentAt: string | null;
 };
 
-export type MailClubPack = { title: string; description: string; updatedAt: string | null };
-
 const subscriptions = () => adminDb().collection("subscriptions");
 const deliveries = () => adminDb().collection("mailClubDeliveries");
-const packRef = () => adminDb().collection("settings").doc("mailClub");
 
 const iso = (v: unknown): string | null => (v instanceof Timestamp ? v.toDate().toISOString() : null);
 const fromUnix = (sec: number | null) => (sec === null ? null : Timestamp.fromMillis(sec * 1000));
@@ -161,16 +158,4 @@ export async function markDeliverySent(id: string, adminUid: string, now: Date):
     tx.update(ref, { status: "sent", sentAt: Timestamp.fromDate(now), sentBy: adminUid });
     return true;
   });
-}
-
-export async function getMailClubPack(): Promise<MailClubPack | null> {
-  const snap = await packRef().get();
-  if (!snap.exists) return null;
-  const d = snap.data()!;
-  if (typeof d.title !== "string" || !d.title) return null;
-  return { title: d.title, description: typeof d.description === "string" ? d.description : "", updatedAt: iso(d.updatedAt) };
-}
-
-export async function saveMailClubPack(pack: { title: string; description: string }, adminUid: string): Promise<void> {
-  await packRef().set({ ...pack, updatedAt: FieldValue.serverTimestamp(), updatedBy: adminUid });
 }
