@@ -6,9 +6,10 @@ import { parseShopParams } from "@/lib/catalog/query";
 import { CategoryIcon } from "@/components/ui/CategoryIcon";
 import { ListingFallback, ListingHero } from "@/components/catalog/ListingHero";
 import { ShopListing } from "@/components/catalog/ShopListing";
+import { slugParams } from "@/lib/catalog/static-params";
 
 export async function generateStaticParams() {
-  return (await getVisibleCategories()).map((c) => ({ slug: c.slug }));
+  return slugParams((await getVisibleCategories()).map((c) => c.slug));
 }
 
 export async function generateMetadata({ params }: PageProps<"/categories/[slug]">): Promise<Metadata> {

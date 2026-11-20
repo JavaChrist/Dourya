@@ -13,9 +13,10 @@ import { DraftBadge } from "@/components/ui/DraftBadge";
 import { ProductGallery } from "@/components/catalog/ProductGallery";
 import { AddToCart, type PersonalisationOption, type VariantOption } from "@/components/catalog/AddToCart";
 import { ModelSelectionProvider } from "@/components/catalog/ModelSelection";
+import { slugParams } from "@/lib/catalog/static-params";
 
 export async function generateStaticParams() {
-  return (await getShownProducts()).map((p) => ({ slug: p.slug }));
+  return slugParams((await getShownProducts()).map((p) => p.slug));
 }
 
 export async function generateMetadata({ params }: PageProps<"/produits/[slug]">): Promise<Metadata> {
