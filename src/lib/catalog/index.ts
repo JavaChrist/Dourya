@@ -1,5 +1,6 @@
 import type { Category, Collection, Product } from "@/lib/types";
 import { catalogAdminState } from "./admin-gate";
+import { isDemoShown, withoutDemo } from "./demo";
 import { isDraftPreview } from "./draft-preview";
 import { createFixtureRepository } from "./fixture-repository";
 import { fixtures } from "./fixtures";
@@ -30,18 +31,32 @@ const loadStored = () =>
     throw error;
   }));
 
+/**
+ * Shop repository for this deployment. The demo content (isDemo) is removed
+ * on dourya.fr only (demo.ts), after the merge: a stored product still cannot
+ * take the slug of a demo product.
+ */
+function shopRepository(catalog: { categories: Category[]; products: Product[] }): CatalogRepository {
+  const demo = isDemoShown(process.env);
+  if (demo && catalog.products === fixtures.products) return repository;
+  return createFixtureRepository({
+    categories: catalog.categories,
+    collections: withoutDemo(fixtures.collections, demo),
+    products: withoutDemo(catalog.products, demo),
+  });
+}
+
 async function currentRepository(): Promise<CatalogRepository> {
   const state = catalogAdminState(process.env);
-  if (!state.enabled) return repository;
+  if (!state.enabled) return shopRepository(fixtures);
   try {
     const { cachedStoredCatalog } = await loadStored();
-    const { categories, products } = shopCatalog(state.mode, fixtures, await cachedStoredCatalog());
-    return createFixtureRepository({ categories, collections: fixtures.collections, products });
+    return shopRepository(shopCatalog(state.mode, fixtures, await cachedStoredCatalog()));
   } catch (error) {
     // Loaded here: lib/log is server-only, and the fixture path stays importable by the unit tests.
     const { errorCode, logEvent } = await import("@/lib/log");
     logEvent("catalog_store_read_error", { code: errorCode(error) });
-    return repository;
+    return shopRepository(fixtures);
   }
 }
 

@@ -21,6 +21,8 @@ export type PromoMessage = {
   id: string;
   text: string;
   link?: ContentLink;
+  /** Placeholder text, removed on dourya.fr. */
+  isDemo?: boolean;
 };
 
 export type PromoBannerConfig = {

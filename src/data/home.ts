@@ -1,3 +1,4 @@
+import { withoutDemo } from "@/lib/catalog/demo";
 import type {
   AutoCarouselConfig,
   MailClubConfig,
@@ -9,7 +10,8 @@ import type {
 /**
  * Home page content. Every text, link, speed and background below is meant to
  * be edited here (later: from the admin back-office), never in components.
- * Texts marked isDemo are placeholders to replace with real content.
+ * Texts marked isDemo are placeholders to replace with real content: they are
+ * removed on dourya.fr (homeContent below, lib/catalog/demo.ts).
  */
 
 export const promoBanner: PromoBannerConfig = {
@@ -17,7 +19,7 @@ export const promoBanner: PromoBannerConfig = {
   durationSeconds: 28,
   messages: [
     { id: "m1", text: "Bienvenue dans la boutique DOURYA", link: { href: "/categories/prints" } },
-    { id: "m2", text: "Message promotionnel de démonstration" },
+    { id: "m2", text: "Message promotionnel de démonstration", isDemo: true },
     { id: "m3", text: "Découvrez les stickers", link: { href: "/categories/stickers" } },
   ],
 };
@@ -82,3 +84,17 @@ export const sectionBackgrounds: Record<"categories" | "footer", SectionBackgrou
   categories: { kind: "grid" },
   footer: { kind: "solid", color: "var(--brand-pink)" },
 };
+
+/**
+ * Home content for this deployment: without the demo slides, messages and
+ * Mail Club text when the demo is hidden (dourya.fr). A section left with
+ * nothing renders nothing.
+ */
+export function homeContent(demoShown: boolean) {
+  return {
+    promoBanner: { ...promoBanner, messages: withoutDemo(promoBanner.messages, demoShown) },
+    heroCarousel: { ...heroCarousel, slides: withoutDemo(heroCarousel.slides, demoShown) },
+    manualCarousel: { ...manualCarousel, slides: withoutDemo(manualCarousel.slides, demoShown) },
+    mailClub: { ...mailClub, enabled: mailClub.enabled && (demoShown || !mailClub.isDemo) },
+  };
+}
