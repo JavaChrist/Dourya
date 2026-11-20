@@ -383,6 +383,11 @@ export async function handleStripeWebhook(raw: string, signature: string | null,
       logEvent("stripe_webhook_unconfigured", { reason: "subscriptions" });
       return 503;
     }
+    // A TEST event (livemode false) is only handled with a test key, a real one with a live key.
+    if (event.livemode !== (stripe.mode === "live")) {
+      logEvent("stripe_webhook_ignored", { reason: "mode_mismatch" });
+      return 200;
+    }
     return handleSubscriptionEvent(event, stripe.subscriptions, now);
   }
 

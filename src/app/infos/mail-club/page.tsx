@@ -8,7 +8,6 @@ import { Notice } from "@/components/auth/FormParts";
 import { ButtonLink } from "@/components/ui/ButtonLink";
 import { SubscribeForm } from "@/components/mail-club/SubscribeForm";
 import { getSessionUser } from "@/lib/auth/dal";
-import { checkoutSwitch } from "@/lib/checkout/test-preview";
 import { formatPrice } from "@/lib/format";
 import { LIVE_STATUSES } from "@/lib/payments/stripe-subscriptions";
 import { getStripe, stripeMode } from "@/lib/payments/stripe";
@@ -19,6 +18,7 @@ import { type MailClubPack, packMonthLabel, splitPublished } from "@/lib/subscri
 import { listPacks } from "@/lib/subscriptions/packs-repository";
 import { getUserSubscription } from "@/lib/subscriptions/repository";
 import { mailClubGate } from "@/lib/subscriptions/service";
+import { mailClubSwitch } from "@/lib/subscriptions/switch";
 
 export const metadata: Metadata = { title: "Mail Club", alternates: { canonical: "/infos/mail-club" } };
 
@@ -96,7 +96,8 @@ async function MailClubLive() {
   const [packs, user] = await Promise.all([publishedPacks(), getSessionUser()]);
   const { current: pack, previous } = splitPublished(packs);
   const stripe = getStripe();
-  const closed = mailClubGate(stripe, checkoutSwitch(process.env, stripeMode()));
+  const sw = mailClubSwitch(process.env, stripeMode(), user?.uid ?? null);
+  const closed = mailClubGate(stripe, sw);
   const current = user ? await getUserSubscription(user.uid) : null;
   const subscribed = current !== null && LIVE_STATUSES.includes(current.status);
 
@@ -133,7 +134,10 @@ async function MailClubLive() {
               <ButtonLink href="/mon-compte/abonnement">Voir mon abonnement</ButtonLink>
             </div>
           ) : user ? (
-            <SubscribeForm priceLabel={priceLabel} />
+            <div className="space-y-4">
+              {sw.test && <Notice tone="info">Mode TEST (compte de test) : paiement Stripe de test, aucun prélèvement réel.</Notice>}
+              <SubscribeForm priceLabel={priceLabel} />
+            </div>
           ) : (
             <div className="space-y-4">
               <p className="text-ink">Connectez-vous ou créez un compte pour vous abonner : vous pourrez suivre et résilier votre abonnement depuis votre compte.</p>

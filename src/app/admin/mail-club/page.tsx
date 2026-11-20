@@ -64,9 +64,13 @@ async function PackList() {
 /** Monthly packs, packs to post (one per paid invoice) and subscriptions. No e-mail or uid shown. */
 async function MailClubAdmin() {
   await requireAdmin();
-  const [toSend, subs] = await Promise.all([listDeliveries("to_send"), listSubscriptions()]);
-  const live = subs.filter((s) => LIVE_STATUSES.includes(s.status));
+  const [allToSend, allSubs] = await Promise.all([listDeliveries("to_send"), listSubscriptions()]);
+  // TEST data (Stripe test mode) is kept apart: never posted, never counted.
+  const toSend = allToSend.filter((d) => !d.test);
+  const live = allSubs.filter((s) => !s.test && LIVE_STATUSES.includes(s.status));
   const cancelling = live.filter((s) => s.cancelAtPeriodEnd).length;
+  const testSubs = allSubs.filter((s) => s.test);
+  const testPacks = allToSend.filter((d) => d.test);
 
   return (
     <>
@@ -120,6 +124,28 @@ async function MailClubAdmin() {
             </ul>
           )}
         </Card>
+
+        {(testSubs.length > 0 || testPacks.length > 0) && (
+          <Card title="Données de TEST">
+            <p className="text-ink">
+              Abonnements payés en mode test Stripe : aucun prélèvement réel. Ils ne comptent pas dans les abonnés et leurs packs ne sont pas à envoyer.
+            </p>
+            <ul className="mt-3 divide-y divide-secondary/30">
+              {testSubs.map((s) => (
+                <li key={s.id} className="py-2 text-sm text-ink">
+                  <span className="mr-2 rounded bg-secondary/30 px-1.5 py-0.5 text-xs font-bold">TEST</span>
+                  Abonnement {s.status} · depuis le {formatDate(s.createdAt)} · {s.id}
+                </li>
+              ))}
+              {testPacks.map((d) => (
+                <li key={d.id} className="py-2 text-sm text-ink">
+                  <span className="mr-2 rounded bg-secondary/30 px-1.5 py-0.5 text-xs font-bold">TEST</span>
+                  Pack payé le {formatDate(d.paidAt)} · {formatPrice(d.amountCents)} · {d.id}
+                </li>
+              ))}
+            </ul>
+          </Card>
+        )}
       </div>
     </>
   );

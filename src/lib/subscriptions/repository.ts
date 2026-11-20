@@ -11,6 +11,11 @@ import { LIVE_STATUSES, type InvoiceView, type ShippingAddress, type Subscriptio
  * subscriptions/{subscriptionId}     uid, status, period end, cancellation, delivery address
  * mailClubDeliveries/{invoiceId}     one pack to send per paid invoice ("to_send" -> "sent")
  * mailClubPacks/{YYYY-MM}           the monthly fiches (packs-repository.ts)
+ *
+ * livemode (Stripe's mode) is stored on both: false = TEST (Stripe test key,
+ * no real payment). TEST data is shown apart in the admin, never counted as a
+ * real subscriber and never marked as posted. A document never changes mode.
+ * Documents written before the field existed count as real (none on dourya.fr).
  */
 
 export type StoredSubscription = {
@@ -23,6 +28,8 @@ export type StoredSubscription = {
   shipping: ShippingAddress | null;
   createdAt: string | null;
   updatedAt: string | null;
+  /** TEST subscription (Stripe test mode). */
+  test: boolean;
 };
 
 export type Delivery = {
@@ -34,12 +41,15 @@ export type Delivery = {
   shipping: ShippingAddress | null;
   status: "to_send" | "sent";
   sentAt: string | null;
+  /** TEST pack (paid in Stripe test mode): never to post. */
+  test: boolean;
 };
 
 const subscriptions = () => adminDb().collection("subscriptions");
 const deliveries = () => adminDb().collection("mailClubDeliveries");
 
 const iso = (v: unknown): string | null => (v instanceof Timestamp ? v.toDate().toISOString() : null);
+const isTest = (d: DocumentData) => d.livemode === false;
 const fromUnix = (sec: number | null) => (sec === null ? null : Timestamp.fromMillis(sec * 1000));
 
 function toSubscription(id: string, d: DocumentData): StoredSubscription {
@@ -53,6 +63,7 @@ function toSubscription(id: string, d: DocumentData): StoredSubscription {
     shipping: d.shipping ?? null,
     createdAt: iso(d.createdAt),
     updatedAt: iso(d.updatedAt),
+    test: isTest(d),
   };
 }
 
@@ -66,13 +77,14 @@ function toDelivery(id: string, d: DocumentData): Delivery {
     shipping: d.shipping ?? null,
     status: d.status === "sent" ? "sent" : "to_send",
     sentAt: iso(d.sentAt),
+    test: isTest(d),
   };
 }
 
 /**
  * Saves the state just read at Stripe. A subscription that does not carry the
- * uid set by this server is never stored. The uid of a stored subscription
- * never changes. Returns false when nothing was stored.
+ * uid set by this server is never stored. The uid and the mode (TEST / real)
+ * of a stored subscription never change. Returns false when nothing was stored.
  */
 export async function saveSubscription(view: SubscriptionView, now: Date): Promise<boolean> {
   if (!view.uid) return false;
@@ -81,6 +93,7 @@ export async function saveSubscription(view: SubscriptionView, now: Date): Promi
   return adminDb().runTransaction(async (tx) => {
     const snap = await tx.get(ref);
     if (snap.exists && snap.get("uid") !== uid) return false;
+    if (snap.exists && typeof snap.get("livemode") === "boolean" && snap.get("livemode") !== view.livemode) return false;
     const at = Timestamp.fromDate(now);
     tx.set(
       ref,
@@ -91,6 +104,7 @@ export async function saveSubscription(view: SubscriptionView, now: Date): Promi
         currentPeriodEnd: fromUnix(view.currentPeriodEnd),
         cancelAtPeriodEnd: view.cancelAtPeriodEnd,
         priceCents: view.priceCents,
+        livemode: view.livemode,
         // An address Stripe no longer returns is kept (the last known one).
         ...(view.shipping ? { shipping: view.shipping } : {}),
         updatedAt: at,
@@ -103,7 +117,7 @@ export async function saveSubscription(view: SubscriptionView, now: Date): Promi
 }
 
 /** One pack per paid invoice: a repeated event changes nothing. Returns "created" or "exists". */
-export async function recordDelivery(invoice: InvoiceView, subscription: StoredSubscription | SubscriptionView, now: Date): Promise<"created" | "exists"> {
+export async function recordDelivery(invoice: InvoiceView, subscription: SubscriptionView, now: Date): Promise<"created" | "exists"> {
   const ref = deliveries().doc(invoice.id);
   return adminDb().runTransaction(async (tx) => {
     if ((await tx.get(ref)).exists) return "exists";
@@ -114,6 +128,7 @@ export async function recordDelivery(invoice: InvoiceView, subscription: StoredS
       paidAt: fromUnix(invoice.paidAt) ?? Timestamp.fromDate(now),
       shipping: subscription.shipping ?? null,
       status: "to_send",
+      livemode: invoice.livemode && subscription.livemode,
       createdAt: Timestamp.fromDate(now),
     });
     return "created";
@@ -149,12 +164,12 @@ export async function listDeliveries(status: Delivery["status"]): Promise<Delive
   return snap.docs.map((d) => toDelivery(d.id, d.data())).sort((a, b) => (a.paidAt ?? "").localeCompare(b.paidAt ?? ""));
 }
 
-/** Admin: the pack has been posted. False when it does not exist or was already marked. */
+/** Admin: the pack has been posted. False when it does not exist, was already marked or is a TEST pack. */
 export async function markDeliverySent(id: string, adminUid: string, now: Date): Promise<boolean> {
   const ref = deliveries().doc(id);
   return adminDb().runTransaction(async (tx) => {
     const snap = await tx.get(ref);
-    if (!snap.exists || snap.get("status") !== "to_send") return false;
+    if (!snap.exists || snap.get("status") !== "to_send" || isTest(snap.data()!)) return false;
     tx.update(ref, { status: "sent", sentAt: Timestamp.fromDate(now), sentBy: adminUid });
     return true;
   });

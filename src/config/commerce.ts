@@ -96,10 +96,13 @@ export const accountConfig = {
  * is taken (the month already paid is still sent). The price is sent to
  * Stripe with each new subscription (no product to create in the dashboard);
  * changing it here only applies to new subscribers.
- * Sale gated like the checkout (checkoutSwitch): open on the stripe-test
- * preview only until the go-live.
+ * Sale gated by mailClubSwitch (subscriptions/switch.ts): closed to the
+ * public until the go-live; open only to the authorised test account (Stripe
+ * test key) on dourya.fr, and on the stripe-test preview.
  */
 export const mailClubConfig = {
+  /** Real (live) subscriptions. false until the merchant decides the go-live. */
+  liveEnabled: false,
   productName: "Mail Club DOURYA",
   priceCents: 1195,
   /** Countries Stripe asks a delivery address in (ISO codes). */

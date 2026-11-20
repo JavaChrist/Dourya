@@ -48,8 +48,9 @@ export const HANDLED_EVENTS = [
 export type StripeEventRef =
   | { kind: "session"; type: string; sessionId: string }
   | { kind: "payment_intent"; type: string; paymentIntentId: string }
-  | { kind: "subscription"; type: string; subscriptionId: string }
-  | { kind: "invoice"; type: string; invoiceId: string }
+  // livemode: the event's mode (false = Stripe test mode), checked against the key and the stored data.
+  | { kind: "subscription"; type: string; subscriptionId: string; livemode: boolean }
+  | { kind: "invoice"; type: string; invoiceId: string; livemode: boolean }
   | { kind: "ignored"; type: string | null };
 
 /**
@@ -64,7 +65,8 @@ export function parseStripeEvent(raw: string): StripeEventRef {
   } catch {
     return { kind: "ignored", type: null };
   }
-  const event = body && typeof body === "object" ? (body as { type?: unknown; data?: { object?: Record<string, unknown> } }) : null;
+  const event = body && typeof body === "object" ? (body as { type?: unknown; livemode?: unknown; data?: { object?: Record<string, unknown> } }) : null;
+  const livemode = event?.livemode === true;
   const type = typeof event?.type === "string" ? event.type : null;
   if (!type || !(HANDLED_EVENTS as readonly string[]).includes(type)) return { kind: "ignored", type };
   const object = event?.data?.object;
@@ -73,10 +75,10 @@ export function parseStripeEvent(raw: string): StripeEventRef {
     return isPaymentIntentId(pi) ? { kind: "payment_intent", type, paymentIntentId: pi } : { kind: "ignored", type };
   }
   if (type.startsWith("customer.subscription.")) {
-    return isSubscriptionId(object?.id) ? { kind: "subscription", type, subscriptionId: object.id } : { kind: "ignored", type };
+    return isSubscriptionId(object?.id) ? { kind: "subscription", type, subscriptionId: object.id, livemode } : { kind: "ignored", type };
   }
   if (type.startsWith("invoice.")) {
-    return isInvoiceId(object?.id) ? { kind: "invoice", type, invoiceId: object.id } : { kind: "ignored", type };
+    return isInvoiceId(object?.id) ? { kind: "invoice", type, invoiceId: object.id, livemode } : { kind: "ignored", type };
   }
   return isCheckoutSessionId(object?.id) ? { kind: "session", type, sessionId: object.id } : { kind: "ignored", type };
 }

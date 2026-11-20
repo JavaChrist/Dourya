@@ -52,6 +52,7 @@ async function SubscriptionContent({ searchParams }: { searchParams: PageProps<"
   const end = formatDate(sub.currentPeriodEnd);
   return (
     <div className="space-y-5">
+      {sub.test && <Notice tone="info">Abonnement TEST : paiement Stripe de test, aucun prélèvement réel et aucun envoi.</Notice>}
       {session && live && <Notice tone="success">Bienvenue au Mail Club ! Votre abonnement est actif.</Notice>}
       <dl className="grid gap-3 text-ink sm:grid-cols-2">
         <div>

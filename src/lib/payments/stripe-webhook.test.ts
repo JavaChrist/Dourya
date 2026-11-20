@@ -46,11 +46,16 @@ describe("parseStripeEvent", () => {
 
   it("keeps the subscription and invoice ids of Mail Club events", () => {
     for (const type of ["customer.subscription.created", "customer.subscription.updated", "customer.subscription.deleted"]) {
-      expect(parseStripeEvent(ev(type, { id: "sub_123" }))).toEqual({ kind: "subscription", type, subscriptionId: "sub_123" });
+      expect(parseStripeEvent(ev(type, { id: "sub_123" }))).toEqual({ kind: "subscription", type, subscriptionId: "sub_123", livemode: false });
     }
     for (const type of ["invoice.paid", "invoice.payment_failed"]) {
-      expect(parseStripeEvent(ev(type, { id: "in_123" }))).toEqual({ kind: "invoice", type, invoiceId: "in_123" });
+      expect(parseStripeEvent(ev(type, { id: "in_123" }))).toEqual({ kind: "invoice", type, invoiceId: "in_123", livemode: false });
     }
+    // The event's mode is kept: only an exact true counts as live.
+    const live = JSON.stringify({ ...JSON.parse(ev("invoice.paid", { id: "in_123" })), livemode: true });
+    expect(parseStripeEvent(live)).toMatchObject({ kind: "invoice", livemode: true });
+    const odd = JSON.stringify({ ...JSON.parse(ev("invoice.paid", { id: "in_123" })), livemode: "true" });
+    expect(parseStripeEvent(odd)).toMatchObject({ kind: "invoice", livemode: false });
     expect(parseStripeEvent(ev("customer.subscription.updated", { id: "cus_1" }))).toMatchObject({ kind: "ignored" });
     expect(parseStripeEvent(ev("invoice.paid", { id: "sub_1" }))).toMatchObject({ kind: "ignored" });
     expect(parseStripeEvent(ev("invoice.created", { id: "in_1" }))).toEqual({ kind: "ignored", type: "invoice.created" });

@@ -36,7 +36,9 @@ describe("parseSubscription", () => {
       cancelAtPeriodEnd: false,
       priceCents: 1195,
       shipping: { name: "Client Test", line1: "1 rue Test", postalCode: "75000", city: "Paris", country: "FR" },
+      livemode: false,
     });
+    expect(parseSubscription(subscription({ livemode: true })).livemode).toBe(true);
   });
 
   it("reads the period on the subscription for older API versions", () => {
@@ -65,7 +67,9 @@ describe("parseInvoice", () => {
       paid: true,
       amountPaidCents: 1195,
       paidAt: 1_800_000_000,
+      livemode: false,
     });
+    expect(parseInvoice({ ...base, livemode: true }).livemode).toBe(true);
     expect(parseInvoice({ ...base, subscription: { id: "sub_old" } }).subscriptionId).toBe("sub_old");
     expect(parseInvoice({ ...base, status: "open", amount_paid: 0 })).toMatchObject({ subscriptionId: null, paid: false });
   });

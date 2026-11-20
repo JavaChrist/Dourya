@@ -2,13 +2,13 @@ import "server-only";
 import { createHash } from "node:crypto";
 import { mailClubConfig } from "@/config/commerce";
 import { checkoutGate, type GateReason } from "@/lib/checkout/build";
-import type { CheckoutSwitch } from "@/lib/checkout/test-preview";
 import { errorCategory, errorCode, logEvent } from "@/lib/log";
 import type { StripeAccess } from "@/lib/payments/stripe";
 import { StripeError } from "@/lib/payments/stripe-client";
 import { LIVE_STATUSES, type SubscriptionClient } from "@/lib/payments/stripe-subscriptions";
 import type { StripeEventRef } from "@/lib/payments/stripe-webhook";
 import { getUserSubscription, recordDelivery, saveSubscription } from "./repository";
+import type { MailClubSwitch } from "./switch";
 
 /**
  * Mail Club subscription flows: start (Stripe Checkout, mode subscription),
@@ -23,8 +23,13 @@ function logStripe(event: string, error: unknown) {
   else logEvent(event, { error: errorCode(error), category: errorCategory(error) });
 }
 
-/** Why the Mail Club cannot be sold here, or null. Same switch as the checkout (test preview only until the go-live). */
-export function mailClubGate(stripe: StripeAccess | null, sw: CheckoutSwitch): GateReason | null {
+/**
+ * Why the Mail Club cannot be sold to this visitor, or null. `sw` comes from
+ * mailClubSwitch (server side, with the signed-in uid). A TEST opening needs a
+ * test key; a live key is still refused by the checkout gate (allowLive).
+ */
+export function mailClubGate(stripe: StripeAccess | null, sw: MailClubSwitch): GateReason | null {
+  if (sw.test && stripe?.mode !== "test") return "checkout_closed";
   const reason = checkoutGate({ keyMode: stripe?.mode ?? null, hasDemo: false, checkoutEnabled: sw.checkoutEnabled });
   if (reason) return reason;
   return stripe?.subscriptions ? null : "payment_not_configured";
@@ -39,7 +44,7 @@ export async function startMailClub(input: {
   user: { uid: string; email: string };
   acceptTerms: boolean;
   stripe: StripeAccess | null;
-  sw: CheckoutSwitch;
+  sw: MailClubSwitch;
   origin: string;
   now: Date;
 }): Promise<StartResult> {
@@ -110,6 +115,9 @@ export async function cancelMailClub(uid: string, stripe: StripeAccess | null, n
  * Subscription and invoice events. The object is re-read at Stripe; a
  * subscription without the uid set by this server is ignored. A paid invoice
  * adds one pack to send (once per invoice, whatever the number of events).
+ * The event, the invoice and the subscription must share one mode: a TEST
+ * event only ever writes TEST data (and saveSubscription never changes the
+ * mode of a stored subscription).
  * Returns the HTTP status for Stripe (500 makes it retry).
  */
 export async function handleSubscriptionEvent(event: Extract<StripeEventRef, { kind: "subscription" | "invoice" }>, subs: SubscriptionClient, now: Date): Promise<number> {
@@ -118,6 +126,10 @@ export async function handleSubscriptionEvent(event: Extract<StripeEventRef, { k
     let invoice = null;
     if (event.kind === "invoice") {
       invoice = await subs.getInvoice(event.invoiceId);
+      if (invoice.livemode !== event.livemode) {
+        logEvent("stripe_webhook_ignored", { reason: "mode_mismatch" });
+        return 200;
+      }
       if (!invoice.subscriptionId) {
         logEvent("stripe_webhook_ignored", { reason: "no_subscription" });
         return 200;
@@ -126,12 +138,16 @@ export async function handleSubscriptionEvent(event: Extract<StripeEventRef, { k
     } else subscriptionId = event.subscriptionId;
 
     const view = await subs.getSubscription(subscriptionId);
+    if (view.livemode !== event.livemode) {
+      logEvent("stripe_webhook_ignored", { reason: "mode_mismatch" });
+      return 200;
+    }
     if (!view.uid || !(await saveSubscription(view, now))) {
       logEvent("stripe_webhook_ignored", { reason: "not_mail_club" });
       return 200;
     }
     const delivery = invoice && event.type === "invoice.paid" && invoice.paid ? await recordDelivery(invoice, view, now) : undefined;
-    logEvent("stripe_webhook_subscription", { type: event.type, status: view.status, ...(delivery ? { delivery } : {}) });
+    logEvent("stripe_webhook_subscription", { type: event.type, status: view.status, test: !view.livemode, ...(delivery ? { delivery } : {}) });
     return 200;
   } catch (error) {
     logStripe("stripe_webhook_subscription_failed", error);

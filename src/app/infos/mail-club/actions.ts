@@ -3,11 +3,11 @@
 import { redirect } from "next/navigation";
 import { siteOrigin } from "@/config/site";
 import { getSessionUser } from "@/lib/auth/dal";
-import { checkoutSwitch } from "@/lib/checkout/test-preview";
 import { getStripe, stripeMode } from "@/lib/payments/stripe";
 import { isStripeCheckoutUrl } from "@/lib/payments/stripe-client";
 import { allowAction } from "@/lib/security/limit";
 import { startMailClub } from "@/lib/subscriptions/service";
+import { mailClubSwitch } from "@/lib/subscriptions/switch";
 
 export type SubscribeState = { status: "idle" | "error"; message?: string; termsError?: boolean };
 
@@ -31,7 +31,8 @@ export async function subscribeMailClubAction(_prev: SubscribeState, formData: F
     user: { uid: user.uid, email: user.email },
     acceptTerms: formData.get("acceptTerms") === "on",
     stripe: getStripe(),
-    sw: checkoutSwitch(process.env, stripeMode()),
+    // Checked here, on the server, before any Stripe session: the page alone is not trusted.
+    sw: mailClubSwitch(process.env, stripeMode(), user.uid),
     origin: siteOrigin(),
     now: new Date(),
   });

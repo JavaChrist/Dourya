@@ -30,9 +30,11 @@ export type SubscriptionView = {
   cancelAtPeriodEnd: boolean;
   priceCents: number | null;
   shipping: ShippingAddress | null;
+  /** false for an object of Stripe's test mode (test key): never a real payment. */
+  livemode: boolean;
 };
 
-export type InvoiceView = { id: string; subscriptionId: string | null; paid: boolean; amountPaidCents: number; paidAt: number | null };
+export type InvoiceView = { id: string; subscriptionId: string | null; paid: boolean; amountPaidCents: number; paidAt: number | null; livemode: boolean };
 
 export type SubscriptionCheckout = { id: string; url: string };
 export type SubscriptionCheckoutResult = { id: string; uid: string | null; subscriptionId: string | null; complete: boolean };
@@ -88,6 +90,7 @@ export function parseSubscription(body: unknown): SubscriptionView {
     cancelAtPeriodEnd: b.cancel_at_period_end === true,
     priceCents: int(price?.unit_amount),
     shipping: parseShipping(customer?.shipping),
+    livemode: b.livemode === true,
   };
 }
 
@@ -103,6 +106,7 @@ export function parseInvoice(body: unknown): InvoiceView {
     paid: b.status === "paid",
     amountPaidCents: amount,
     paidAt: int(obj(b.status_transitions)?.paid_at),
+    livemode: b.livemode === true,
   };
 }
 
