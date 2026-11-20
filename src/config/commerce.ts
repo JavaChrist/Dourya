@@ -15,7 +15,7 @@
 export type TaxStatus = { kind: "franchise" } | { kind: "vat"; ratePercent: number };
 
 export const taxConfig: { status: TaxStatus | null } = {
-  status: null,
+  status: { kind: "franchise" },
 };
 
 /** Mention shown next to prices, or null while the VAT status is not confirmed. */

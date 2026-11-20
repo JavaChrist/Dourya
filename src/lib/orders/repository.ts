@@ -483,6 +483,35 @@ export async function getShippingSettings(): Promise<ShippingSettings> {
   };
 }
 
+/**
+ * Replaces the whole shipping settings document (Admin → Expédition). The
+ * caller has validated the settings (shipping/form.ts); every rate is checked
+ * again here so an invalid rate is never stored. Records who changed it (admin
+ * uid, never the e-mail) and when.
+ */
+export async function saveShippingSettings(settings: ShippingSettings, adminUid: string, now = new Date()): Promise<void> {
+  if (!settings.rates.every(isValidRate)) throw new Error("invalid_shipping_rate");
+  const t = settings.freeShippingThresholdCents;
+  if (t !== null && !(Number.isInteger(t) && t > 0)) throw new Error("invalid_shipping_threshold");
+  await db()
+    .collection("settings")
+    .doc("shipping")
+    .set({
+      zones: settings.zones.map((z) => ({ code: z.code, name: z.name, enabled: z.enabled })),
+      rates: settings.rates.map((r) => ({ ...r })),
+      freeShippingThresholdCents: t,
+      updatedAt: now.toISOString(),
+      updatedBy: adminUid,
+    });
+}
+
+/** When the shipping settings were last saved from the admin, or null. */
+export async function shippingSettingsUpdatedAt(): Promise<string | null> {
+  const snap = await db().collection("settings").doc("shipping").get();
+  const at = snap.get("updatedAt");
+  return typeof at === "string" ? at : null;
+}
+
 /** Latest orders, newest first (admin list). */
 export async function listRecentOrders(limit = 200): Promise<OrderRecord[]> {
   const snap = await orders().orderBy("createdAt", "desc").limit(limit).get();

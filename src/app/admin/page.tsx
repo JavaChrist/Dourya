@@ -73,6 +73,13 @@ async function AdminContent() {
           </Link>
         </Card>
 
+        <Card title="Expédition">
+          <p className="text-ink-muted">Zones de livraison, tarifs par enveloppe et par service (poids et dimensions maximum), seuil de livraison offerte.</p>
+          <Link href="/admin/expedition" className={`${secondaryButton} mt-4`}>
+            Régler l&apos;expédition
+          </Link>
+        </Card>
+
         <Card title="Commandes">
           <p className="text-ink-muted">Commandes payées à fabriquer, préparer et expédier (numéro de suivi), statut des e-mails envoyés au client.</p>
           <Link href="/admin/commandes" className={`${secondaryButton} mt-4`}>
