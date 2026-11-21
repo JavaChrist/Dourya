@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { heroCarousel, homeContent, linksToLivePage, manualCarousel } from "@/data/home";
+import { heroCarousel, homeContent, imageIsLive, linksToLivePage, manualCarousel } from "@/data/home";
 import { isDemoShown, withoutDemo } from "./demo";
 import { getListedProducts, getProductForPage, getShownProducts, getVisibleCollections } from "./index";
 
@@ -54,6 +54,44 @@ describe("homeContent", () => {
       expect(slide.image?.src).toMatch(/^\/images\/products\/[a-z-]+\/[a-z0-9-]+\/\d{2}\.webp$/);
       expect(existsSync(join(process.cwd(), "public", slide.image!.src))).toBe(true);
     }
+  });
+});
+
+describe("homeContent with the carousels of Admin → Accueil", () => {
+  const live = { categories: new Set(["prints"]), products: new Set(["sticker-lune"]), photos: new Set(["/catalogue/photos/p-sticker-lune/abcdef1234.webp"]) };
+  const image = (src: string) => ({ src, alt: "Photo", width: 800, height: 800 });
+  const stored = {
+    hero: [
+      { id: "a", title: "Prints", image: image("/images/products/prints/print-gros-dodo/01.webp"), link: { href: "/categories/prints", label: "Voir" } },
+      { id: "b", title: "Rubrique masquée", image: image("/images/products/prints/print-gros-dodo/01.webp"), link: { href: "/categories/stickers" } },
+    ],
+    selection: [
+      { id: "c", title: "Lune", image: image("/catalogue/photos/p-sticker-lune/abcdef1234.webp"), link: { href: "/produits/sticker-lune" } },
+      { id: "d", title: "Photo d'un produit retiré", image: image("/catalogue/photos/p-retire/abcdef1234.webp"), link: { href: "/produits/sticker-lune" } },
+    ],
+  };
+
+  it("replaces the slides of home.ts and keeps only those whose link and photo are live", () => {
+    const home = homeContent(false, live, stored);
+    expect(home.heroCarousel.slides.map((s) => s.id)).toEqual(["a"]);
+    expect(home.manualCarousel.slides.map((s) => s.id)).toEqual(["c"]);
+    expect(home.heroCarousel.title).toBe(heroCarousel.title);
+  });
+
+  it("keeps home.ts when nothing is stored", () => {
+    expect(homeContent(false, live, null).heroCarousel.slides.map((s) => s.id)).toEqual(["hero-prints"]);
+  });
+});
+
+describe("imageIsLive", () => {
+  const live = { categories: new Set<string>(), products: new Set<string>(), photos: new Set(["/catalogue/photos/p1/abc.webp"]) };
+  it("never shows a draft photo, shows an uploaded photo only while its product is listed", () => {
+    expect(imageIsLive("/admin/catalogue/photos/p1/abc.webp", live)).toBe(false);
+    expect(imageIsLive("/catalogue/photos/p1/abc.webp", live)).toBe(true);
+    expect(imageIsLive("/catalogue/photos/p2/abc.webp", live)).toBe(false);
+    expect(imageIsLive("/catalogue/photos/p1/abc.webp", { categories: new Set(), products: new Set() })).toBe(false);
+    expect(imageIsLive("/images/products/prints/print-gros-dodo/01.webp", live)).toBe(true);
+    expect(imageIsLive(undefined, live)).toBe(true);
   });
 });
 

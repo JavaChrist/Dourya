@@ -1,15 +1,19 @@
 import { withoutDemo } from "@/lib/catalog/demo";
+import { isDraftPhotoUrl, isPublicPhotoUrl } from "@/lib/catalog/draft-photo-url";
 import type {
   AutoCarouselConfig,
   MailClubConfig,
   ManualCarouselConfig,
   PromoBannerConfig,
   SectionBackground,
+  Slide,
 } from "@/lib/types";
 
 /**
  * Home page content. Every text, link, speed and background below is meant to
- * be edited here (later: from the admin back-office), never in components.
+ * be edited here, never in components. The slides of the two carousels can be
+ * composed in Admin → Accueil (Firestore settings/home, lib/home): when
+ * something is stored there it replaces the slides below.
  * Texts marked isDemo are placeholders to replace with real content: they are
  * removed on dourya.fr (homeContent below, lib/catalog/demo.ts).
  */
@@ -106,8 +110,12 @@ export const sectionBackgrounds: Record<"categories" | "footer", SectionBackgrou
   footer: { kind: "solid", color: "var(--brand-pink)" },
 };
 
-/** Slugs on sale on this deployment: a slide linking elsewhere is left out. */
-export type LiveSlugs = { categories: ReadonlySet<string>; products: ReadonlySet<string> };
+/**
+ * Slugs on sale on this deployment: a slide linking elsewhere is left out.
+ * `photos`: srcs of the listed products' images, so an uploaded photo is shown
+ * only while the shop serves it.
+ */
+export type LiveSlugs = { categories: ReadonlySet<string>; products: ReadonlySet<string>; photos?: ReadonlySet<string> };
 
 /** false when the slide links to a category or product not shown on this deployment. */
 export function linksToLivePage(href: string | undefined, live: LiveSlugs): boolean {
@@ -117,18 +125,34 @@ export function linksToLivePage(href: string | undefined, live: LiveSlugs): bool
 }
 
 /**
+ * false when the image is a photo uploaded in the catalogue that the shop does
+ * not serve right now (draft route, or public route of a product not listed):
+ * the slide is left out rather than shown with a broken image.
+ */
+export function imageIsLive(src: string | undefined, live: LiveSlugs): boolean {
+  if (!src) return true;
+  if (isDraftPhotoUrl(src)) return false;
+  if (isPublicPhotoUrl(src)) return !!live.photos?.has(src);
+  return true;
+}
+
+/** Slides composed in the admin (lib/home toSlides), replacing the ones above. */
+export type StoredSlides = { hero: Slide[]; selection: Slide[] };
+
+/**
  * Home content for this deployment: without the demo slides, messages and
  * Mail Club text when the demo is hidden (dourya.fr), and without the slides
- * that would link to a hidden category or product. A section left with
- * nothing renders nothing.
+ * that would link to a hidden category or product or show a photo not served.
+ * `stored` (Admin → Accueil) replaces the slides of the code. A section left
+ * with nothing renders nothing.
  */
-export function homeContent(demoShown: boolean, live: LiveSlugs) {
-  const slides = <T extends { isDemo?: boolean; link?: { href: string } }>(list: readonly T[]) =>
-    withoutDemo(list, demoShown).filter((s) => linksToLivePage(s.link?.href, live));
+export function homeContent(demoShown: boolean, live: LiveSlugs, stored?: StoredSlides | null) {
+  const slides = <T extends { isDemo?: boolean; link?: { href: string }; image?: { src: string } }>(list: readonly T[]) =>
+    withoutDemo(list, demoShown).filter((s) => linksToLivePage(s.link?.href, live) && imageIsLive(s.image?.src, live));
   return {
     promoBanner: { ...promoBanner, messages: withoutDemo(promoBanner.messages, demoShown) },
-    heroCarousel: { ...heroCarousel, slides: slides(heroCarousel.slides) },
-    manualCarousel: { ...manualCarousel, slides: slides(manualCarousel.slides) },
+    heroCarousel: { ...heroCarousel, slides: slides(stored ? stored.hero : heroCarousel.slides) },
+    manualCarousel: { ...manualCarousel, slides: slides(stored ? stored.selection : manualCarousel.slides) },
     mailClub: { ...mailClub, enabled: mailClub.enabled && (demoShown || !mailClub.isDemo) },
   };
 }
