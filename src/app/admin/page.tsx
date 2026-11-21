@@ -87,6 +87,13 @@ async function AdminContent() {
           </Link>
         </Card>
 
+        <Card title="Accueil">
+          <p className="text-ink-muted">Les deux carrousels de la page d&apos;accueil : « À la une » (vers les rubriques) et « Sélection » (vers les produits), avec leurs photos et leur ordre.</p>
+          <Link href="/admin/accueil" className={`${secondaryButton} mt-4`}>
+            Composer l&apos;accueil
+          </Link>
+        </Card>
+
         <Card title="Catalogue">
           <p className="text-ink-muted">Rubriques, fiches produits et photos. Les nouvelles rubriques visibles apparaissent dans la boutique ; une fiche n&apos;y apparaît qu&apos;une fois complète et publiée. La vente reste fermée.</p>
           <Link href="/admin/catalogue" className={`${secondaryButton} mt-4`}>
