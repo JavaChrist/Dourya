@@ -15,7 +15,8 @@ import { DemoBadge } from "@/components/ui/DemoBadge";
 export function ManualCarousel({ config }: { config: ManualCarouselConfig }) {
   const trackRef = useRef<HTMLUListElement>(null);
   const [canPrev, setCanPrev] = useState(false);
-  const [canNext, setCanNext] = useState(true);
+  // false until measured: the arrows stay hidden while the cards fit on screen.
+  const [canNext, setCanNext] = useState(false);
 
   const update = useCallback(() => {
     const el = trackRef.current;
@@ -26,9 +27,16 @@ export function ManualCarousel({ config }: { config: ManualCarouselConfig }) {
 
   useEffect(() => {
     update();
-    window.addEventListener("resize", update);
-    return () => window.removeEventListener("resize", update);
-  }, [update]);
+    const el = trackRef.current;
+    if (!el) return;
+    // The track's width changes with the window; its content with the slides.
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [update, config.slides.length]);
+
+  /** Nothing to scroll (every card fits on screen): the arrows are hidden, their place kept. */
+  const scrollable = canPrev || canNext;
 
   const scroll = (dir: 1 | -1) => {
     const el = trackRef.current;
@@ -49,7 +57,7 @@ export function ManualCarousel({ config }: { config: ManualCarouselConfig }) {
           </h2>
           {config.subtitle && <p className="mt-1 text-ink-muted">{config.subtitle}</p>}
         </div>
-        <div className="flex shrink-0 gap-2">
+        <div className={`flex shrink-0 gap-2 ${scrollable ? "" : "invisible"}`}>
           <ArrowButton dir={-1} disabled={!canPrev} onClick={() => scroll(-1)} />
           <ArrowButton dir={1} disabled={!canNext} onClick={() => scroll(1)} />
         </div>
